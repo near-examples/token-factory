@@ -1,0 +1,13 @@
+.local-video {
+  display: inline-block;
+  width: 640px;
+  background: #333;
+  transform: scaleX(-1);
+}
+
+.remote-video {
+  display: inline-block;
+  width: 640px;
+  background: #666;
+}
+
