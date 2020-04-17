@@ -1,6 +1,6 @@
 import "./App.css";
 import React from 'react';
-import * as nearlib from 'nearlib';
+import * as nearAPI from 'near-api-js';
 import * as nacl from "tweetnacl";
 import WebRTC from './rtc.js';
 
@@ -82,18 +82,18 @@ class App extends React.Component {
       contractName: ContractName,
       walletUrl: 'https://wallet.nearprotocol.com',
     };
-    const keyStore = new nearlib.keyStores.BrowserLocalStorageKeyStore();
-    const near = await nearlib.connect(Object.assign({ deps: { keyStore } }, nearConfig));
+    const keyStore = new nearAPI.keyStores.BrowserLocalStorageKeyStore();
+    const near = await nearAPI.connect(Object.assign({ deps: { keyStore } }, nearConfig));
     this._keyStore = keyStore;
     this._nearConfig = nearConfig;
     this._near = near;
 
-    this._walletConnection = new nearlib.WalletConnection(near, "webrtc-chat");
+    this._walletConnection = new nearAPI.WalletConnection(near, "webrtc-chat");
     this._accountId = this._walletConnection.getAccountId();
 
     if (!!this._accountId) {
       this._account = this._walletConnection.account();
-      this._contract = new nearlib.Contract(this._account, ContractName, {
+      this._contract = new nearAPI.Contract(this._account, ContractName, {
         viewMethods: ['get_key', 'get_request', 'get_response'],
         changeMethods: ['set_key', 'request', 'respond'],
       });
