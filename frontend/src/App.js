@@ -88,15 +88,14 @@ class App extends React.Component {
     this._walletConnection = new nearAPI.WalletConnection(near, ContractName);
     this._accountId = this._walletConnection.getAccountId();
 
-    if (!!this._accountId) {
-      this._account = this._walletConnection.account();
-      this._contract = new nearAPI.Contract(this._account, ContractName, {
-        viewMethods: ['get_min_attached_balance', 'get_number_of_tokens', 'get_token_descriptions', 'get_token_description'],
-        changeMethods: ['create_token'],
-      });
-      this._minAttachedBalance = await this._contract.get_min_attached_balance();
-      await this._initYourToken();
-    }
+    this._account = this._walletConnection.account();
+    this._contract = new nearAPI.Contract(this._account, ContractName, {
+      viewMethods: ['get_min_attached_balance', 'get_number_of_tokens', 'get_token_descriptions', 'get_token_description'],
+      changeMethods: ['create_token'],
+    });
+    this._minAttachedBalance = await this._contract.get_min_attached_balance();
+    await this._initYourToken();
+
   }
 
   handleChange(key, value) {
@@ -154,6 +153,15 @@ class App extends React.Component {
         ContractName,
         appTitle
     )
+  }
+
+  async logOut() {
+    this._walletConnection.signOut();
+    this._accountId = null;
+    this.setState({
+      signedIn: !!this._accountId,
+      accountId: this._accountId,
+    })
   }
 
   async onFilesChange(f) {
@@ -222,9 +230,14 @@ class App extends React.Component {
         <div>Connecting... <span className="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span></div>
     ) : (this.state.signedIn ? (
         <div>
+          <div className="float-right">
+            <button
+                className="btn btn-outline-secondary"
+                onClick={() => this.logOut()}>Log out</button>
+          </div>
           <h4>Hello, <span className="font-weight-bold">{this.state.accountId}</span>!</h4>
           <p>
-                Issue a new token. It'll cost you <span className="font-weight-bold">{fromYocto(this._minAttachedBalance)} Ⓝ</span>
+            Issue a new token. It'll cost you <span className="font-weight-bold">{fromYocto(this._minAttachedBalance)} Ⓝ</span>
           </p>
           <div className="form-group">
             <label forhtml="tokenId">Token ID</label>
@@ -309,7 +322,7 @@ class App extends React.Component {
             <label forhtml="tokenIcon">Token Icon</label>
             <div className="input-group">
               <div>
-                <img className="rounded token-icon" src={this.state.tokenIconBase64 || DefaultTokenIcon} alt="Token Icon"/>
+                <img className="rounded token-icon" style={{marginRight: '1em'}} src={this.state.tokenIconBase64 || DefaultTokenIcon} alt="Token Icon"/>
               </div>
               <div>
                 <Files

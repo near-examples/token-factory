@@ -2,6 +2,7 @@ import React from 'react';
 import { useTable } from 'react-table'
 import BTable from 'react-bootstrap/Table';
 import DefaultTokenIcon from './default-token.jpg';
+import BN from 'bn.js';
 
 function Table({ columns, data }) {
     // Use the state and functions returned from useTable to build your UI
@@ -49,7 +50,7 @@ export class Tokens extends React.Component {
         super(props);
 
         this.state = {
-            tokens: [],
+            tokens: JSON.parse(localStorage.getItem("cached_tokens") || '[]'),
         };
         this.columns = [
             {
@@ -72,6 +73,7 @@ export class Tokens extends React.Component {
             {
                 Header: 'Total Supply',
                 accessor: 'total_supply',
+                Cell: ({row}) => new BN(row.original.total_supply).div(new BN(row.original.precision)).toString()
             },
         ];
         this._initialized = false;
@@ -89,15 +91,15 @@ export class Tokens extends React.Component {
     async refetchTokens() {
         const contract = this.props.contract;
         const numTokens = await contract.get_number_of_tokens();
-        console.log(numTokens);
-        const tokens = [];
+        const tokens = JSON.parse(JSON.stringify(this.state.tokens));
         const limit = 5;
-        for (let i = 0; i < numTokens; i += limit) {
+        for (let i = tokens.length; i < numTokens; i += limit) {
             const newTokens = await contract.get_token_descriptions({from_index: 0, limit});
             tokens.push(...newTokens);
+            localStorage.setItem("cached_tokens", JSON.stringify(tokens));
             console.log(tokens);
             this.setState({
-                tokens: JSON.parse(JSON.stringify(tokens)),
+                tokens: JSON.parse(localStorage.getItem("cached_tokens") || '[]'),
             })
         }
     }
