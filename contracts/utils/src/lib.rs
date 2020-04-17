@@ -4,20 +4,20 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub type TokenId = String;
 pub type AccountId = String;
 
-#[derive(Deserialize, Serialize, BorshDeserialize, BorshSerialize)]
+#[derive(Deserialize, Serialize, BorshDeserialize, BorshSerialize, Clone)]
 pub struct TokenDescription {
     pub token_id: TokenId,
     pub owner_id: AccountId,
     pub total_supply: U128,
     pub precision: U128,
-    pub name: String,
-    pub description: String,
-    pub icon_png_base64: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub icon_png_base64: Option<String>,
 }
 
 // TODO: Replace with `U128` from `json_types::U128` once it's merged.
 #[derive(Debug, Copy, Clone, PartialEq, BorshDeserialize, BorshSerialize)]
-pub struct U128(u128);
+pub struct U128(pub u128);
 
 impl From<u128> for U128 {
     fn from(v: u128) -> Self {

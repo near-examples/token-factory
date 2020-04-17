@@ -152,7 +152,7 @@ impl FungibleToken {
 
     /// Returns total supply of tokens.
     pub fn get_total_supply(&self) -> U128 {
-        self.token_description.total_supply.into()
+        self.token_description.total_supply
     }
 
     /// Returns balance of the `owner_id` account.
@@ -167,6 +167,11 @@ impl FungibleToken {
     /// So this method should only be used on the front-end to see the current allowance.
     pub fn get_allowance(&self, owner_id: AccountId, escrow_account_id: AccountId) -> U128 {
         self.get_account(&owner_id).get_allowance(&escrow_account_id).into()
+    }
+
+    /// Get description of the token.
+    pub fn get_token_description(&self) -> TokenDescription {
+        self.token_description.clone()
     }
 }
 
@@ -229,7 +234,6 @@ mod tests {
             random_seed: vec![0, 1, 2],
             is_view: false,
             output_data_receivers: vec![],
-            epoch_height: 0,
         }
     }
 
@@ -238,9 +242,18 @@ mod tests {
         let context = get_context(carol());
         testing_env!(context);
         let total_supply = 1_000_000_000_000_000u128;
-        let contract = FungibleToken::new(bob(), total_supply.into());
+        let contract = FungibleToken::new(TokenDescription {
+            token_id: "token".to_string(),
+            owner_id: bob(),
+            total_supply: total_supply.into(),
+            precision: 1_000_000_000u128.into(),
+            name: Some("token".to_string()),
+            description: None,
+            icon_png_base64: None,
+        });
         assert_eq!(contract.get_total_supply().0, total_supply);
         assert_eq!(contract.get_balance(bob()).0, total_supply);
+        assert_eq!(contract.get_token_description().name, Some("token".to_string()),);
     }
 
     #[test]
@@ -248,7 +261,15 @@ mod tests {
         let context = get_context(carol());
         testing_env!(context);
         let total_supply = 1_000_000_000_000_000u128;
-        let mut contract = FungibleToken::new(carol(), total_supply.into());
+        let mut contract = FungibleToken::new(TokenDescription {
+            token_id: "token".to_string(),
+            owner_id: carol(),
+            total_supply: total_supply.into(),
+            precision: 1_000_000_000u128.into(),
+            name: Some("token".to_string()),
+            description: None,
+            icon_png_base64: None,
+        });
         let transfer_amount = total_supply / 3;
         contract.transfer(bob(), transfer_amount.into());
         assert_eq!(contract.get_balance(carol()).0, (total_supply - transfer_amount));
@@ -260,7 +281,15 @@ mod tests {
         let context = get_context(carol());
         testing_env!(context);
         let total_supply = 1_000_000_000_000_000u128;
-        let mut contract = FungibleToken::new(carol(), total_supply.into());
+        let mut contract = FungibleToken::new(TokenDescription {
+            token_id: "token".to_string(),
+            owner_id: carol(),
+            total_supply: total_supply.into(),
+            precision: 1_000_000_000u128.into(),
+            name: Some("token".to_string()),
+            description: None,
+            icon_png_base64: None,
+        });
         catch_unwind_silent(move || {
             contract.set_allowance(carol(), (total_supply / 2).into());
         })
@@ -272,7 +301,15 @@ mod tests {
         // Acting as carol
         testing_env!(get_context(carol()));
         let total_supply = 1_000_000_000_000_000u128;
-        let mut contract = FungibleToken::new(carol(), total_supply.into());
+        let mut contract = FungibleToken::new(TokenDescription {
+            token_id: "token".to_string(),
+            owner_id: carol(),
+            total_supply: total_supply.into(),
+            precision: 1_000_000_000u128.into(),
+            name: Some("token".to_string()),
+            description: None,
+            icon_png_base64: None,
+        });
         assert_eq!(contract.get_total_supply().0, total_supply);
         let allowance = total_supply / 3;
         let transfer_amount = allowance / 3;
@@ -291,7 +328,15 @@ mod tests {
         // Acting as carol
         testing_env!(get_context(carol()));
         let total_supply = 1_000_000_000_000_000u128;
-        let mut contract = FungibleToken::new(carol(), total_supply.into());
+        let mut contract = FungibleToken::new(TokenDescription {
+            token_id: "token".to_string(),
+            owner_id: carol(),
+            total_supply: total_supply.into(),
+            precision: 1_000_000_000u128.into(),
+            name: Some("token".to_string()),
+            description: None,
+            icon_png_base64: None,
+        });
         assert_eq!(contract.get_total_supply().0, total_supply);
         let allowance = total_supply / 3;
         let transfer_amount = allowance / 3;
