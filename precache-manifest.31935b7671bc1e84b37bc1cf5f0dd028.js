@@ -1,10 +1,10 @@
 self.__precacheManifest = (self.__precacheManifest || []).concat([
   {
-    "revision": "b651078fe318d326d5015eed38801b79",
+    "revision": "e6df6a6221caee558d2dc0571e0dd0e2",
     "url": "/token-factory/index.html"
   },
   {
-    "revision": "6a44452e769e048ce469",
+    "revision": "7254e9029b72c2fdb696",
     "url": "/token-factory/static/css/main.e2c4ad93.chunk.css"
   },
   {
@@ -16,8 +16,8 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/token-factory/static/js/2.e0d0ed1e.chunk.js.LICENSE.txt"
   },
   {
-    "revision": "6a44452e769e048ce469",
-    "url": "/token-factory/static/js/main.05b27c76.chunk.js"
+    "revision": "7254e9029b72c2fdb696",
+    "url": "/token-factory/static/js/main.b264b721.chunk.js"
   },
   {
     "revision": "e3ab954c19dfe5406c8f",

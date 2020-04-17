@@ -1,14 +1,14 @@
 {
   "files": {
     "main.css": "/token-factory/static/css/main.e2c4ad93.chunk.css",
-    "main.js": "/token-factory/static/js/main.05b27c76.chunk.js",
-    "main.js.map": "/token-factory/static/js/main.05b27c76.chunk.js.map",
+    "main.js": "/token-factory/static/js/main.b264b721.chunk.js",
+    "main.js.map": "/token-factory/static/js/main.b264b721.chunk.js.map",
     "runtime-main.js": "/token-factory/static/js/runtime-main.f1bfe7e5.js",
     "runtime-main.js.map": "/token-factory/static/js/runtime-main.f1bfe7e5.js.map",
     "static/js/2.e0d0ed1e.chunk.js": "/token-factory/static/js/2.e0d0ed1e.chunk.js",
     "static/js/2.e0d0ed1e.chunk.js.map": "/token-factory/static/js/2.e0d0ed1e.chunk.js.map",
     "index.html": "/token-factory/index.html",
-    "precache-manifest.cb7170b88ab87a8c4bfacb6739b516c3.js": "/token-factory/precache-manifest.cb7170b88ab87a8c4bfacb6739b516c3.js",
+    "precache-manifest.31935b7671bc1e84b37bc1cf5f0dd028.js": "/token-factory/precache-manifest.31935b7671bc1e84b37bc1cf5f0dd028.js",
     "service-worker.js": "/token-factory/service-worker.js",
     "static/css/main.e2c4ad93.chunk.css.map": "/token-factory/static/css/main.e2c4ad93.chunk.css.map",
     "static/js/2.e0d0ed1e.chunk.js.LICENSE.txt": "/token-factory/static/js/2.e0d0ed1e.chunk.js.LICENSE.txt"
@@ -17,6 +17,6 @@
     "static/js/runtime-main.f1bfe7e5.js",
     "static/js/2.e0d0ed1e.chunk.js",
     "static/css/main.e2c4ad93.chunk.css",
-    "static/js/main.05b27c76.chunk.js"
+    "static/js/main.b264b721.chunk.js"
   ]
 }
