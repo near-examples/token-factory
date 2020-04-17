@@ -61,6 +61,7 @@ export class Tokens extends React.Component {
             {
                 Header: 'ID',
                 accessor: 'token_id',
+                Cell: ({row}) => <a href={`https://explorer.nearprotocol.com/accounts/${row.original.token_id}.tf`}>{row.original.token_id}</a>
             },
             {
                 Header: 'Name',
