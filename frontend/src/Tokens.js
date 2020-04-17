@@ -32,9 +32,9 @@ function Table({ columns, data }) {
                     <tr {...row.getRowProps()}>
                         {row.cells.map(cell => {
                             return (
-                                <th {...cell.getCellProps()}>
+                                <td {...cell.getCellProps()}>
                                     {cell.render('Cell')}
-                                </th>
+                                </td>
                             )
                         })}
                     </tr>
@@ -64,17 +64,22 @@ export class Tokens extends React.Component {
                 Cell: ({row}) => <a href={`https://explorer.nearprotocol.com/accounts/${row.original.token_id}.tf`}>{row.original.token_id}</a>
             },
             {
-                Header: 'Name',
+                Header: () => <span style={{whiteSpace: 'nowrap'}}>Token Name</span>,
                 accessor: 'name',
             },
             {
                 Header: 'Owner ID',
                 accessor: 'owner_id',
+                Cell: ({row}) => <a href={`https://explorer.nearprotocol.com/accounts/${row.original.owner_id}`}>{row.original.owner_id}</a>
             },
             {
                 Header: 'Total Supply',
                 accessor: 'total_supply',
                 Cell: ({row}) => new BN(row.original.total_supply).div(new BN(row.original.precision)).toString()
+            },
+            {
+                Header: 'Description',
+                accessor: 'description',
             },
         ];
         this._initialized = false;
