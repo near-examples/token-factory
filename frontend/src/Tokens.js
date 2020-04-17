@@ -94,7 +94,7 @@ export class Tokens extends React.Component {
         const tokens = JSON.parse(JSON.stringify(this.state.tokens));
         const limit = 5;
         for (let i = tokens.length; i < numTokens; i += limit) {
-            const newTokens = await contract.get_token_descriptions({from_index: 0, limit});
+            const newTokens = await contract.get_token_descriptions({from_index: i, limit});
             tokens.push(...newTokens);
             localStorage.setItem("cached_tokens", JSON.stringify(tokens));
             console.log(tokens);
