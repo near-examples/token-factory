@@ -13,9 +13,10 @@
 */
 use borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::Map;
+use near_sdk::json_types::U128;
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
-use utils::{U128, TokenDescription};
+use utils::TokenDescription;
 
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;

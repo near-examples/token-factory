@@ -1,18 +1,24 @@
 import "./App.css";
 import React from 'react';
 import * as nearAPI from 'near-api-js';
-import * as nacl from "tweetnacl";
-import WebRTC from './rtc.js';
+import Files from "react-files";
+import BN from 'bn.js';
+import { Tokens } from './Tokens.js';
+import DefaultTokenIcon from './default-token.jpg';
 
-const ContractName = 'webrtc-chat';
-const MaxTimeForResponse = 60 * 1000;
+const UploadResizeWidth = 96;
+const UploadResizeHeight = 96;
+
+const YourTokenIdKey = "your_token_id";
+const OneNear = new BN("1000000000000000000000000");
+const ContractName = 'tf';
 const MinAccountIdLen = 2;
 const MaxAccountIdLen = 64;
 const ValidAccountRe = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
-const MediaConstraints = {
-  audio: true,
-  video: true
-};
+const ValidTokenIdRe = /^[a-z\d]+$/
+const GAS = new BN("1000000000000000")
+
+const fromYocto = (a) => Math.floor(a / OneNear * 1000) / 1000;
 
 class App extends React.Component {
   constructor(props) {
@@ -21,15 +27,21 @@ class App extends React.Component {
     this.state = {
       connected: false,
       signedIn: false,
-      calling: false,
+      creating: false,
       accountId: null,
-      receiverId: "",
-      receiversKey: null,
-      accountLoading: false,
-      callConnected: false,
+      tokenLoading: false,
+      tokenAlreadyExists: false,
+
+      tokenId: "",
+      totalSupply: "1000000000",
+      tokenPrecision: "1000000000000000000",
+      tokenName: "",
+      tokenDescription: "",
+      tokenIconBase64: "",
+
+      yourTokenDescription: null,
     };
 
-    this._parseEncryptionKey()
     this._initNear().then(() => {
       this.setState({
         connected: true,
@@ -37,42 +49,27 @@ class App extends React.Component {
         accountId: this._accountId,
       })
     })
-
-    this.localVideoRef = React.createRef();
-    this.remoteVideoRef = React.createRef();
   }
 
-  /**
-   read private key from local storage
-   - if found, recreate the related key pair
-   - if not found, create a new key pair and save it to local storage
-   */
-  _parseEncryptionKey() {
-    const keyKey = "enc_key:";
-    let key = localStorage.getItem(keyKey);
-    if (key) {
-      const buf = Buffer.from(key, 'base64');
-      if (buf.length !== nacl.box.secretKeyLength) {
-        throw new Error("Given secret key has wrong length");
-      }
-      key = nacl.box.keyPair.fromSecretKey(buf);
-    } else {
-      key = new nacl.box.keyPair();
-      localStorage.setItem(keyKey, Buffer.from(key.secretKey).toString('base64'));
+  async _initYourToken() {
+    const yourTokenId = window.localStorage.getItem(YourTokenIdKey);
+    if (!yourTokenId) {
+      return;
     }
-    this._key = key;
-  }
+    window.localStorage.removeItem(YourTokenIdKey);
 
-  async _updateEncryptionPublicKey() {
-    const key = Buffer.from(this._key.publicKey).toString('base64');
+    let tokenDescription = await this._contract.get_token_description({token_id: yourTokenId});
 
-    const currentKey = await this._contract.get_key({account_id: this._accountId});
-    if (currentKey !== key) {
-      console.log(`Updating public encryption key to ${key}`);
-      await this._contract.set_key({key});
-    } else {
-      console.log(`Current public encryption key is up to date: ${key}`);
+    if (!tokenDescription) {
+      console.log(`Creation of token "${yourTokenId}" has likely failed`);
+      return;
     }
+
+    console.log(tokenDescription);
+
+    this.setState({
+      yourTokenDescription: tokenDescription
+    })
   }
 
   async _initNear() {
@@ -88,16 +85,17 @@ class App extends React.Component {
     this._nearConfig = nearConfig;
     this._near = near;
 
-    this._walletConnection = new nearAPI.WalletConnection(near, "webrtc-chat");
+    this._walletConnection = new nearAPI.WalletConnection(near, ContractName);
     this._accountId = this._walletConnection.getAccountId();
 
     if (!!this._accountId) {
       this._account = this._walletConnection.account();
       this._contract = new nearAPI.Contract(this._account, ContractName, {
-        viewMethods: ['get_key', 'get_request', 'get_response'],
-        changeMethods: ['set_key', 'request', 'respond'],
+        viewMethods: ['get_min_attached_balance', 'get_number_of_tokens', 'get_token_descriptions', 'get_token_description'],
+        changeMethods: ['create_token'],
       });
-      await this._updateEncryptionPublicKey();
+      this._minAttachedBalance = await this._contract.get_min_attached_balance();
+      await this._initYourToken();
     }
   }
 
@@ -105,23 +103,23 @@ class App extends React.Component {
     const stateChange = {
       [key]: value,
     };
-    if (key === 'receiverId') {
-      value = value.toLowerCase().replace(/[^a-z0-9\-_.]/, '');
+    if (key === 'tokenId') {
+      value = value.toLowerCase().replace(/[^a-z\d]/, '');
       stateChange[key] = value;
-      stateChange.receiversKey = null;
-      if (this.isValidAccount(value)) {
-        stateChange.accountLoading = true;
-        this._contract.get_key({account_id: value}).then((receiversKey) => {
-          if (this.state.receiverId === value) {
+      stateChange.tokenAlreadyExists = false;
+      if (this.isValidTokenId(value)) {
+        stateChange.tokenLoading = true;
+        this._contract.get_token_description({token_id: value}).then((tokenDescription) => {
+          if (this.state.tokenId === value) {
             this.setState({
-              accountLoading: false,
-              receiversKey,
+              tokenLoading: false,
+              tokenAlreadyExists: tokenDescription !== null,
             })
           }
         }).catch((e) => {
-          if (this.state.receiverId === value) {
+          if (this.state.tokenId === value) {
             this.setState({
-              accountLoading: false,
+              tokenLoading: false,
             })
           }
         })
@@ -130,16 +128,20 @@ class App extends React.Component {
     this.setState(stateChange);
   }
 
-  isValidAccount(accountId) {
-    return accountId.length >= MinAccountIdLen &&
-        accountId.length <= MaxAccountIdLen &&
-        accountId.match(ValidAccountRe);
+  isValidAccountId(tokenId) {
+    return tokenId.length >= MinAccountIdLen &&
+        tokenId.length <= MaxAccountIdLen &&
+        tokenId.match(ValidAccountRe);
   }
 
-  receiverClass() {
-    if (!this.state.receiverId || (this.isValidAccount(this.state.receiverId) && this.state.accountLoading)) {
+  isValidTokenId(tokenId) {
+    return tokenId.match(ValidTokenIdRe) && this.isValidAccountId(tokenId + '.' + ContractName);
+  }
+
+  tokenIdClass() {
+    if (!this.state.tokenId || (this.isValidTokenId(this.state.tokenId) && this.state.tokenLoading)) {
       return "form-control form-control-large";
-    } else if (this.isValidAccount(this.state.receiverId) && this.state.receiversKey) {
+    } else if (this.isValidTokenId(this.state.tokenId)) {
       return "form-control form-control-large is-valid";
     } else {
       return "form-control form-control-large is-invalid";
@@ -147,209 +149,72 @@ class App extends React.Component {
   }
 
   async requestSignIn() {
-    const appTitle = 'WebRTC Chat';
+    const appTitle = 'Token Factory';
     await this._walletConnection.requestSignIn(
         ContractName,
         appTitle
     )
   }
 
-  /**
-   unbox encrypted messages with our secret key
-   @param {string} msg64 encrypted message encoded as Base64
-   @param {Uint8Array} theirPublicKey the public key to use to verify the message
-   @return {string} decoded contents of the box
-   */
-  decryptBox(msg64, theirPublicKey64) {
-    const theirPublicKey = Buffer.from(theirPublicKey64, 'base64');
-    if (theirPublicKey.length !== nacl.box.publicKeyLength) {
-      throw new Error("Given encryption public key is invalid.");
+  async onFilesChange(f) {
+    let sourceImage = new Image();
+    let reader = new FileReader();
+
+    reader.readAsDataURL(f[0]);
+
+    sourceImage.onload = () => {
+      // Create a canvas with the desired dimensions
+      let canvas = document.createElement("canvas");
+      const aspect = sourceImage.naturalWidth / sourceImage.naturalHeight;
+      const width = Math.round(UploadResizeWidth * Math.max(1, aspect));
+      const height = Math.round(UploadResizeHeight * Math.max(1, 1 / aspect));
+      canvas.width = UploadResizeWidth;
+      canvas.height = UploadResizeHeight;
+      const ctx = canvas.getContext("2d");
+
+      // Scale and draw the source image to the canvas
+      ctx.imageSmoothingQuality = "high";
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, UploadResizeWidth, UploadResizeHeight);
+      ctx.drawImage(sourceImage, (UploadResizeWidth - width) / 2, (UploadResizeHeight - height) / 2, width, height);
+
+      // Convert the canvas to a data URL in PNG format
+      const options = [
+        canvas.toDataURL('image/jpeg', 0.92),
+        // Disabling webp because it doesn't work on iOS.
+        // canvas.toDataURL('image/webp', 0.92),
+        canvas.toDataURL('image/png')
+      ];
+      options.sort((a, b) => a.length - b.length);
+
+      this.handleChange('tokenIconBase64', options[0]);
     }
-    const buf = Buffer.from(msg64, 'base64');
-    const nonce = new Uint8Array(nacl.box.nonceLength);
-    buf.copy(nonce, 0, 0, nonce.length);
-    const box = new Uint8Array(buf.length - nacl.box.nonceLength);
-    buf.copy(box, 0, nonce.length);
-    const decodedBuf = nacl.box.open(box, nonce, theirPublicKey, this._key.secretKey);
-    return Buffer.from(decodedBuf).toString()
+
+    reader.onload = function(event) {
+      sourceImage.src = event.target.result;
+    };
   }
 
-  /**
-   box an unencrypted message with their public key and sign it with our secret key
-   @param {string} str the message to wrap in a box
-   @param {Uint8Array} theirPublicKey the public key to use to encrypt the message
-   @returns {string} base64 encoded box of incoming message
-   */
-  encryptBox(str, theirPublicKey64) {
-    const theirPublicKey = Buffer.from(theirPublicKey64, 'base64');
-    if (theirPublicKey.length !== nacl.box.publicKeyLength) {
-      throw new Error("Given encryption public key is invalid.");
-    }
-    const buf = Buffer.from(str);
-    const nonce = nacl.randomBytes(nacl.box.nonceLength);
-    const box = nacl.box(buf, nonce, theirPublicKey, this._key.secretKey);
-
-    const fullBuf = new Uint8Array(box.length + nacl.box.nonceLength);
-    fullBuf.set(nonce);
-    fullBuf.set(box, nacl.box.nonceLength);
-    return Buffer.from(fullBuf).toString('base64')
+  async onFilesError(e, f) {
+    console.log(e, f);
   }
 
-  async initCall() {
-    const receiverId = this.state.receiverId;
-    const receiversKey = this.state.receiversKey;
+  async createToken() {
     this.setState({
-      calling: true,
+      creating: true,
     });
-
-    this.webrtc = new WebRTC();
-    this.webrtc.addOnTrackListener((e) => {
-      console.log("got remote streams", e);
-      if (this.remoteVideoRef.current.srcObject !== e.streams[0]) {
-        this.remoteVideoRef.current.srcObject = e.streams[0];
-        this.remoteVideoRef.current.play();
+    window.localStorage.setItem(YourTokenIdKey, this.state.tokenId);
+    await this._contract.create_token({
+      token_description: {
+        token_id: this.state.tokenId,
+        owner_id: this.state.accountId,
+        total_supply: new BN(this.state.totalSupply).mul(new BN(this.state.tokenPrecision)).toString(),
+        precision: this.state.tokenPrecision.toString(),
+        name: this.state.tokenName || null,
+        description: this.state.tokenDescription || null,
+        icon_base64: this.state.tokenIconBase64 || null,
       }
-    });
-
-    const stream = await navigator.mediaDevices.getUserMedia(MediaConstraints);
-    this.localVideoRef.current.srcObject = stream;
-    this.localVideoRef.current.play();
-
-    this.webrtc.addStream(stream);
-
-    try {
-      // First check if they called us first
-      const theirRequestEncoded = await this._contract.get_request({
-        from_account_id: receiverId,
-        to_account_id: this._accountId,
-      });
-
-      if (theirRequestEncoded) {
-        // decoding
-        const theirRequest = JSON.parse(this.decryptBox(theirRequestEncoded, receiversKey));
-        console.log(theirRequest);
-        if (theirRequest) {
-          const theirTime = theirRequest.time || 0;
-          if (theirTime + MaxTimeForResponse > new Date().getTime()) {
-            const offer = theirRequest.offer;
-            console.log("Remote offer: ", offer);
-            const answer = await this.webrtc.createAnswer(offer);
-            console.log("Local answer: ", answer);
-            // Publishing answer
-            const response = this.encryptBox(JSON.stringify({
-              answer,
-              time: new Date().getTime(),
-            }), receiversKey);
-            await this._contract.respond({
-              to_account_id: receiverId,
-              response,
-            });
-            this.setState({
-              callConnected: true,
-            })
-            return;
-          }
-        }
-      }
-    } catch (e) {
-      console.log("Failed to parse request", e);
-    }
-
-    // Sending a new request
-    const offer = await this.webrtc.createOffer();
-    console.log("Local offer: ", offer);
-    const requestTime = new Date().getTime();
-    const request = this.encryptBox(JSON.stringify({
-      offer,
-      time: requestTime,
-    }), receiversKey);
-    await this._contract.request({
-      to_account_id: receiverId,
-      request,
-    });
-
-    this.setState({
-      awaitingResponse: true,
-    })
-
-    // Sent request, now need to check for the answer.
-    while (this.state.calling && requestTime + MaxTimeForResponse > new Date().getTime()) {
-      try {
-        const theirResponseEncoded = await this._contract.get_response({
-          from_account_id: this._accountId,
-          to_account_id: receiverId,
-        });
-
-        if (theirResponseEncoded) {
-          // decoding
-          const theirResponse = JSON.parse(this.decryptBox(theirResponseEncoded, receiversKey));
-          console.log(theirResponse);
-          if (theirResponse) {
-            const answer = theirResponse.answer;
-            console.log("Remote answer: ", answer);
-            await this.webrtc.onAnswer(answer);
-            this.setState({
-              callConnected: true,
-              awaitingResponse: false,
-            })
-            return;
-          }
-        }
-      } catch (e) {
-        console.log("Failed to get response", e);
-        this.setState({
-          awaitingResponse: false,
-          calling: false,
-        })
-        return;
-      }
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-
-    this.setState({
-      awaitingResponse: false,
-      calling: false,
-    })
-
-    this.hangUp();
-  }
-
-  hangUp() {
-    if (this.state.calling) {
-      this.webrtc.close();
-      this.webrtc = null;
-      this.localVideoRef.current.pause();
-      this.setState({
-        calling: false,
-      })
-    }
-  }
-
-  async localCall() {
-    const local = new WebRTC();
-    const remote = new WebRTC();
-
-    local.addOnTrackListener((e) => console.log("local", e));
-    remote.addOnTrackListener((e) => {
-      console.log("remote", e);
-      if (this.remoteVideoRef.current.srcObject !== e.streams[0]) {
-        this.remoteVideoRef.current.srcObject = e.streams[0];
-        this.remoteVideoRef.current.play();
-      }
-    });
-
-    const stream = await navigator.mediaDevices.getUserMedia(MediaConstraints);
-    this.localVideoRef.current.srcObject = stream;
-    this.localVideoRef.current.play();
-
-    local.addStream(stream);
-
-    const offer = await local.createOffer();
-    console.log(offer);
-    const answer = await remote.createAnswer(offer);
-    console.log(answer);
-
-    await local.onAnswer(answer);
+    }, GAS, this._minAttachedBalance)
   }
 
   render() {
@@ -357,54 +222,148 @@ class App extends React.Component {
         <div>Connecting... <span className="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span></div>
     ) : (this.state.signedIn ? (
         <div>
-          <h3>Hello, {this.state.accountId}</h3>
+          <h4>Hello, <span className="font-weight-bold">{this.state.accountId}</span>!</h4>
+          <p>
+                Issue a new token. It'll cost you <span className="font-weight-bold">{fromYocto(this._minAttachedBalance)} Ⓝ</span>
+          </p>
           <div className="form-group">
-            <label className="sr-only" htmlFor="toAccountId">Video Call</label>
+            <label forhtml="tokenId">Token ID</label>
             <div className="input-group">
               <div className="input-group-prepend">
                 <div className="input-group-text">@</div>
               </div>
               <input type="text"
-                     className={this.receiverClass()}
-                     id="toAccountId"
-                     placeholder="eugenethedream"
-                     disabled={this.state.calling}
-                     value={this.state.receiverId}
-                     onChange={(e) => this.handleChange('receiverId', e.target.value)}
+                     className={this.tokenIdClass()}
+                     id="tokenId"
+                     placeholder="fdai"
+                     disabled={this.state.creating}
+                     value={this.state.tokenId}
+                     onChange={(e) => this.handleChange('tokenId', e.target.value)}
+              />
+              <div className="input-group-append">
+                <div className="input-group-text">.tf</div>
+              </div>
+            </div>
+            <small>It'll be used to uniquely identify the token and to create an Account ID for the token</small>
+          </div>
+
+          <div className="form-group">
+            <label forhtml="totalSupply">Total Supply</label>
+            <div className="input-group">
+              <input type="number"
+                  className="form-control form-control-large"
+                  id="totalSupply"
+                  placeholder="1000000000"
+                  disabled={this.state.creating}
+                  value={this.state.totalSupply}
+                  onChange={(e) => this.handleChange('totalSupply', e.target.value)}
+              />
+            </div>
+            <small>This is a total number of tokens to mint.</small>
+          </div>
+
+          <div className="form-group">
+            <label forhtml="tokenPrecision">Token Precision</label>
+            <div className="input-group">
+              <input type="number"
+                     className="form-control form-control-large"
+                     id="tokenPrecision"
+                     placeholder="1000000000000000000"
+                     disabled={this.state.creating}
+                     value={this.state.tokenPrecision}
+                     onChange={(e) => this.handleChange('tokenPrecision', e.target.value)}
+              />
+            </div>
+            <small>Tokens operate on integer numbers. <code>1 / precision</code> is the smallest fractional value of the new token.</small>
+          </div>
+
+          <div className="form-group">
+            <label forhtml="tokenName">Token Name</label>
+            <div className="input-group">
+              <input type="text"
+                     className="form-control form-control-large"
+                     id="tokenName"
+                     placeholder="Fake DAI"
+                     disabled={this.state.creating}
+                     value={this.state.tokenName}
+                     onChange={(e) => this.handleChange('tokenName', e.target.value)}
               />
             </div>
           </div>
+
+          <div className="form-group">
+            <label forhtml="tokenDescription">Token Description</label>
+            <div className="input-group">
+              <textarea
+                  className="form-control form-control-large"
+                  id="tokenDescription"
+                  placeholder="Fake DAI token. It like a stable token on Ethereum, but it's not really stable, not on Ethereum."
+                  disabled={this.state.creating}
+                  value={this.state.tokenDescription}
+                  onChange={(e) => this.handleChange('tokenDescription', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label forhtml="tokenIcon">Token Icon</label>
+            <div className="input-group">
+              <div>
+                <img className="rounded token-icon" src={this.state.tokenIconBase64 || DefaultTokenIcon} alt="Token Icon"/>
+              </div>
+              <div>
+                <Files
+                    id="tokenIcon"
+                    className='form-control form-control-large btn btn-outline-primary'
+                    onChange={(f) => this.onFilesChange(f)}
+                    onError={(e, f) => this.onFilesError(e, f)}
+                    multiple={false}
+                    accepts={['image/*']}
+                    minFileSize={1}
+                    clickable
+                >
+                  Click to upload Token Icon
+                </Files>
+              </div>
+            </div>
+          </div>
+
           <div className="form-group">
             <div>
               <button
                   className="btn btn-success"
-                  disabled={this.state.calling || !this.isValidAccount(this.state.receiverId) || !this.state.receiversKey}
-                  onClick={() => this.initCall()}>Initiate Video Call</button>
-              <span> </span>
-              <button
-                  className="btn btn-danger"
-                  disabled={!this.state.calling}
-                  onClick={() => this.hangUp()}>Hang up</button>
+                  disabled={this.state.creating || !this.isValidTokenId(this.state.tokenId) || this.state.tokenLoading || this.state.tokenAlreadyExists}
+                  onClick={() => this.createToken()}>Create Token ({fromYocto(this._minAttachedBalance)} Ⓝ)</button>
             </div>
           </div>
           <hr/>
-          <video className="local-video" ref={this.localVideoRef} playsInline muted></video>
-          <video className="remote-video" ref={this.remoteVideoRef} playsInline ></video>
         </div>
     ) : (
         <div>
           <button
               className="btn btn-primary"
-              onClick={() => this.requestSignIn()}>Log in with NEAR Wallet</button>
+              onClick={() => this.requestSignIn()}>Log in with NEAR Wallet to create a new Token</button>
         </div>
     ));
+    const tokens = this.state.connected && (
+        <div>
+          <h3>Tokens</h3>
+          <Tokens contract={this._contract}/>
+        </div>
+    );
     return (
         <div>
-          <h1>WebRTC Chat</h1>
-          {content}
+          <h1>Token Factory</h1>
+          <div style={{minHeight: "10em"}}>
+            {content}
+          </div>
+          <div>
+            {tokens}
+          </div>
         </div>
     );
   }
 }
+
 
 export default App;

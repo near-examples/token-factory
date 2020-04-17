@@ -1,13 +1,5 @@
-.local-video {
-  display: inline-block;
-  width: 640px;
-  background: #333;
-  transform: scaleX(-1);
+.token-icon {
+  width: 48px;
+  height: 48px;
+  margin: 5px;
 }
-
-.remote-video {
-  display: inline-block;
-  width: 640px;
-  background: #666;
-}
-

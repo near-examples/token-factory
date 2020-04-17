@@ -3,14 +3,15 @@ use serde::Serialize;
 
 use near_sdk::collections::Map;
 use near_sdk::{env, near_bindgen, Promise, Gas, Balance};
+use near_sdk::json_types::U128;
 
-use utils::{U128, TokenId, TokenDescription, is_valid_account_id};
+use utils::{TokenId, TokenDescription};
 
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 const MIN_ATTACHED_BALANCE: Balance = 25_000_000_000_000_000_000_000_000;
-const GAS: Gas =  100_000_000_000_000;
+const GAS: Gas = 100_000_000_000_000;
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -33,7 +34,7 @@ struct TokenNewArgs {
 impl TokenFactory {
     #[init]
     pub fn new() -> Self {
-        assert!(env::state_read::<Self>().is_none(), "The contract is already initialized");
+        assert!(!env::state_exists(), "The contract is already initialized");
         Self {
             tokens: Map::new(b"t".to_vec()),
         }
@@ -47,24 +48,29 @@ impl TokenFactory {
         self.tokens.len()
     }
 
-    pub fn get_token_ids(&self, from_index: u64, limit: u64) -> Vec<TokenId> {
-        let keys = self.tokens.keys_as_vector();
-        if from_index >= keys.len() {
+    pub fn get_token_descriptions(&self, from_index: u64, limit: u64) -> Vec<TokenDescription> {
+        let tokens = self.tokens.values_as_vector();
+        if from_index >= tokens.len() {
             return Vec::new();
         }
-        let n = std::cmp::min(keys.len() - from_index, limit);
-        let mut token_ids = Vec::with_capacity(n as usize);
+        let n = std::cmp::min(tokens.len() - from_index, limit);
+        let mut result = Vec::with_capacity(n as usize);
         for index in from_index..from_index+n {
-            token_ids.push(keys.get(index).unwrap());
+            result.push(tokens.get(index).unwrap());
         }
-        token_ids
+        result
     }
 
+    pub fn get_token_description(&self, token_id: TokenId) -> Option<TokenDescription> {
+        self.tokens.get(&token_id)
+    }
+
+    #[payable]
     pub fn create_token(&mut self, token_description: TokenDescription) -> Promise {
         assert!(env::attached_deposit() >= MIN_ATTACHED_BALANCE, "Not enough attached deposit to complete token creation");
 
         let token_account_id = format!("{}.{}", token_description.token_id, env::current_account_id());
-        assert!(is_valid_account_id(&token_account_id), "Token Account ID is invalid");
+        assert!(env::is_valid_account_id(token_account_id.as_bytes()), "Token Account ID is invalid");
 
         assert!(self.tokens.insert(&token_description.token_id, &token_description).is_none(), "Token ID is already exists");
 

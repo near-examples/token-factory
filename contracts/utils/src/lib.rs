@@ -1,8 +1,9 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
+use near_sdk::{env, AccountId};
+use near_sdk::json_types::U128;
 
 pub type TokenId = String;
-pub type AccountId = String;
 
 #[derive(Deserialize, Serialize, BorshDeserialize, BorshSerialize, Clone)]
 pub struct TokenDescription {
@@ -12,75 +13,7 @@ pub struct TokenDescription {
     pub precision: U128,
     pub name: Option<String>,
     pub description: Option<String>,
-    pub icon_png_base64: Option<String>,
-}
-
-// TODO: Replace with `U128` from `json_types::U128` once it's merged.
-#[derive(Debug, Copy, Clone, PartialEq, BorshDeserialize, BorshSerialize)]
-pub struct U128(pub u128);
-
-impl From<u128> for U128 {
-    fn from(v: u128) -> Self {
-        Self(v)
-    }
-}
-
-impl From<U128> for u128 {
-    fn from(v: U128) -> u128 {
-        v.0
-    }
-}
-
-impl Serialize for U128 {
-    fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
-        where
-            S: Serializer,
-    {
-        serializer.serialize_str(&self.0.to_string())
-    }
-}
-
-impl<'de> Deserialize<'de> for U128 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
-        where
-            D: Deserializer<'de>,
-    {
-        let s: String = Deserialize::deserialize(deserializer)?;
-        Ok(Self(
-            u128::from_str_radix(&s, 10)
-                .map_err(|err| serde::de::Error::custom(err.to_string()))?,
-        ))
-    }
-}
-
-// TODO: Replace with `env::is_valid_account_id` once it's merged.
-pub fn is_valid_account_id(account_id: &AccountId) -> bool {
-    if (account_id.len() as u64) < 2
-        || (account_id.len() as u64) > 64
-    {
-        return false;
-    }
-
-    // NOTE: We don't want to use Regex here, because it requires extra time to compile it.
-    // The valid account ID regex is /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/
-    // Instead the implementation is based on the previous character checks.
-
-    // We can safely assume that last char was a separator.
-    let mut last_char_is_separator = true;
-
-    for c in account_id.as_bytes() {
-        let current_char_is_separator = match *c {
-            b'a'..=b'z' | b'0'..=b'9' => false,
-            b'-' | b'_' | b'.' => true,
-            _ => return false,
-        };
-        if current_char_is_separator && last_char_is_separator {
-            return false;
-        }
-        last_char_is_separator = current_char_is_separator;
-    }
-    // The account can't end as separator.
-    !last_char_is_separator
+    pub icon_base64: Option<String>,
 }
 
 pub fn is_valid_token_id(token_id: &TokenId) -> bool {
@@ -96,7 +29,7 @@ pub fn is_valid_token_id(token_id: &TokenId) -> bool {
 impl TokenDescription {
     pub fn assert_valid(&self) {
         assert!(is_valid_token_id(&self.token_id), "Invalid character in a given token id");
-        assert!(is_valid_account_id(&self.owner_id), "Invalid character in a given token id");
+        assert!(env::is_valid_account_id(self.owner_id.as_bytes()), "Invalid character in a given token id");
         assert!(self.total_supply.0 > 0, "Total supply has to be positive");
         assert!(self.precision.0 > 0, "Precision has to be positive");
     }
