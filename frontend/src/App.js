@@ -16,7 +16,7 @@ const MinAccountIdLen = 2;
 const MaxAccountIdLen = 64;
 const ValidAccountRe = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
 const ValidTokenIdRe = /^[a-z\d]+$/
-const GAS = new BN("1000000000000000")
+const GAS = new BN("100000000000000")
 
 const fromYocto = (a) => Math.floor(a / OneNear * 1000) / 1000;
 
@@ -75,9 +75,9 @@ class App extends React.Component {
   async _initNear() {
     const nearConfig = {
       networkId: 'default',
-      nodeUrl: 'https://rpc.nearprotocol.com',
+      nodeUrl: 'https://rpc.testnet.near.org',
       contractName: ContractName,
-      walletUrl: 'https://wallet.nearprotocol.com',
+      walletUrl: 'https://wallet.testnet.near.org',
     };
     const keyStore = new nearAPI.keyStores.BrowserLocalStorageKeyStore();
     const near = await nearAPI.connect(Object.assign({ deps: { keyStore } }, nearConfig));

@@ -1,22 +1,22 @@
-use borsh::{BorshDeserialize, BorshSerialize};
-use serde::Serialize;
-
-use near_sdk::collections::Map;
+use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::serde::Serialize;
+use near_sdk::serde_json;
+use near_sdk::collections::UnorderedMap;
 use near_sdk::{env, near_bindgen, Promise, Gas, Balance};
 use near_sdk::json_types::U128;
 
 use utils::{TokenId, TokenDescription};
 
 #[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
 
 const MIN_ATTACHED_BALANCE: Balance = 25_000_000_000_000_000_000_000_000;
-const GAS: Gas = 100_000_000_000_000;
+const GAS: Gas = 10_000_000_000_000;
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct TokenFactory {
-    tokens: Map<TokenId, TokenDescription>,
+    tokens: UnorderedMap<TokenId, TokenDescription>,
 }
 
 impl Default for TokenFactory {
@@ -26,6 +26,7 @@ impl Default for TokenFactory {
 }
 
 #[derive(Serialize)]
+#[serde(crate = "near_sdk::serde")]
 struct TokenNewArgs {
     token_description: TokenDescription,
 }
@@ -36,7 +37,7 @@ impl TokenFactory {
     pub fn new() -> Self {
         assert!(!env::state_exists(), "The contract is already initialized");
         Self {
-            tokens: Map::new(b"t".to_vec()),
+            tokens: UnorderedMap::new(b"t".to_vec()),
         }
     }
 
@@ -107,16 +108,6 @@ mod tests {
         "carol.near".to_string()
     }
 
-    fn catch_unwind_silent<F: FnOnce() -> R + std::panic::UnwindSafe, R>(
-        f: F,
-    ) -> std::thread::Result<R> {
-        let prev_hook = std::panic::take_hook();
-        std::panic::set_hook(Box::new(|_| {}));
-        let result = std::panic::catch_unwind(f);
-        std::panic::set_hook(prev_hook);
-        result
-    }
-
     fn get_context(predecessor_account_id: AccountId) -> VMContext {
         VMContext {
             current_account_id: alice(),
@@ -134,6 +125,7 @@ mod tests {
             random_seed: vec![0, 1, 2],
             is_view: false,
             output_data_receivers: vec![],
+            epoch_height: 0,
         }
     }
 
@@ -144,7 +136,7 @@ mod tests {
         let contract = TokenFactory::new();
         assert_eq!(contract.get_min_attached_balance().0, MIN_ATTACHED_BALANCE);
         assert_eq!(contract.get_number_of_tokens(), 0);
-        assert!(contract.get_token_ids(0, 10).is_empty());
+        assert!(contract.get_token_descriptions(0, 10).is_empty());
     }
 
     #[test]
@@ -161,11 +153,13 @@ mod tests {
             precision: 1_000_000_000.into(),
             name: Some("token".to_string()),
             description: None,
-            icon_png_base64: None,
+            icon_base64: None,
         });
 
         assert_eq!(contract.get_number_of_tokens(), 1);
-        assert_eq!(contract.get_token_ids(0, 10), vec!["token".to_string()]);
+        let tokens = contract.get_token_descriptions(0, 10);
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].token_id, "token".to_string());
     }
 
 }

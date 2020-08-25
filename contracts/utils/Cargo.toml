@@ -5,9 +5,7 @@ authors = ["Near Inc <hello@nearprotocol.com>"]
 edition = "2018"
 
 [dependencies]
-borsh = "0.6.1"
-near-sdk = "0.9.2"
-serde = { version = "1.0", features = ["derive"] }
+near-sdk = "1.0.1"
 
 [profile.release]
 codegen-units = 1

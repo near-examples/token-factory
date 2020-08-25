@@ -1,11 +1,12 @@
-use borsh::{BorshDeserialize, BorshSerialize};
-use serde::{Deserialize, Serialize};
+use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId};
 use near_sdk::json_types::U128;
 
 pub type TokenId = String;
 
 #[derive(Deserialize, Serialize, BorshDeserialize, BorshSerialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct TokenDescription {
     pub token_id: TokenId,
     pub owner_id: AccountId,
