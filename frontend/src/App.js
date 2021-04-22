@@ -2,27 +2,32 @@ import "./App.css";
 import React from 'react';
 import * as nearAPI from 'near-api-js';
 import Files from "react-files";
-import BN from 'bn.js';
-import { Tokens } from './Tokens.js';
-import DefaultTokenIcon from './default-token.jpg';
+import { Tokens, ContractName } from './Tokens.js';
+import Big from 'big.js';
+import ls from "local-storage";
 
 const UploadResizeWidth = 96;
 const UploadResizeHeight = 96;
 
-const YourTokenIdKey = "your_token_id";
-const OneNear = new BN("1000000000000000000000000");
-const ContractName = 'tf';
+const OneNear = Big(10).pow(24);
 const MinAccountIdLen = 2;
 const MaxAccountIdLen = 64;
 const ValidAccountRe = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
 const ValidTokenIdRe = /^[a-z\d]+$/
-const GAS = new BN("100000000000000")
+const TGas = Big(10).pow(12);
+const BoatOfGas = Big(200).mul(TGas);
 
-const fromYocto = (a) => Math.floor(a / OneNear * 1000) / 1000;
+const fromYocto = (a) => a && Big(a).div(OneNear).toFixed(3);
 
 class App extends React.Component {
   constructor(props) {
     super(props);
+
+    this.lsKey = ContractName + ':v01:';
+    this.lsKeyToken = this.lsKey + "token";
+    this.lsKeyCachedTokens = this.lsKey + "cachedTokens";
+    this.lsKeyCreateToken = this.lsKey + "createToken";
+    this._updateRequiredDeposit = null;
 
     this.state = {
       connected: false,
@@ -33,13 +38,11 @@ class App extends React.Component {
       tokenAlreadyExists: false,
 
       tokenId: "",
-      totalSupply: "1000000000",
-      tokenPrecision: "1000000000000000000",
+      totalSupply: Big("1000000000"),
+      tokenDecimals: 18,
       tokenName: "",
-      tokenDescription: "",
-      tokenIconBase64: "",
-
-      yourTokenDescription: null,
+      tokenIconBase64: null,
+      requiredDeposit: null,
     };
 
     this._initNear().then(() => {
@@ -47,29 +50,66 @@ class App extends React.Component {
         connected: true,
         signedIn: !!this._accountId,
         accountId: this._accountId,
+        ownerId: this._accountId,
       })
     })
   }
 
   async _initYourToken() {
-    const yourTokenId = window.localStorage.getItem(YourTokenIdKey);
-    if (!yourTokenId) {
-      return;
+    const args = ls.get(this.lsKeyToken);
+    if (args) {
+      const createToken = ls.get(this.lsKeyCreateToken);
+      if (createToken) {
+        ls.remove(this.lsKeyCreateToken);
+        this.setState({
+          creating: true,
+        });
+        await this._contract.create_token({args}, BoatOfGas.toFixed(0));
+        ls.remove(this.lsKeyToken);
+      }
     }
-    window.localStorage.removeItem(YourTokenIdKey);
 
-    let tokenDescription = await this._contract.get_token_description({token_id: yourTokenId});
+    this.updateRequiredDeposit();
+  }
 
-    if (!tokenDescription) {
-      console.log(`Creation of token "${yourTokenId}" has likely failed`);
-      return;
+  constructArgs() {
+    return {
+      owner_id: this._accountId,
+      total_supply: this.state.totalSupply.mul(Big(10).pow(this.state.tokenDecimals)).round(0, 0).toFixed(0),
+      metadata: {
+        spec: "ft-1.0.0",
+        name: this.state.tokenName,
+        symbol: this.state.tokenId,
+        icon: this.state.tokenIconBase64,
+        decimals: this.state.tokenDecimals,
+      }
     }
+  }
 
-    console.log(tokenDescription);
+  async internalUpdateRequiredDeposit() {
+    if (this._accountId) {
+      const requiredDeposit = await this.computeRequiredDeposit();
+      if (!requiredDeposit || requiredDeposit !== this.state.requiredDeposit) {
+        this.setState({
+          requiredDeposit
+        })
+      }
+    }
+  }
 
-    this.setState({
-      yourTokenDescription: tokenDescription
-    })
+  updateRequiredDeposit() {
+    if (this._updateRequiredDeposit) {
+      clearTimeout(this._updateRequiredDeposit);
+      this._updateRequiredDeposit = null;
+    }
+    this._updateRequiredDeposit = setTimeout(() => this.internalUpdateRequiredDeposit(), 250);
+  }
+
+  async computeRequiredDeposit(args) {
+    args = args || this.constructArgs();
+    return Big(await this._contract.get_required_deposit({
+      args, account_id: this._accountId
+    }))
   }
 
   async _initNear() {
@@ -90,10 +130,9 @@ class App extends React.Component {
 
     this._account = this._walletConnection.account();
     this._contract = new nearAPI.Contract(this._account, ContractName, {
-      viewMethods: ['get_min_attached_balance', 'get_number_of_tokens', 'get_token_descriptions', 'get_token_description'],
-      changeMethods: ['create_token'],
+      viewMethods: ['get_required_deposit', 'get_number_of_tokens', 'get_tokens', 'get_token'],
+      changeMethods: ['create_token', 'storage_deposit'],
     });
-    this._minAttachedBalance = await this._contract.get_min_attached_balance();
     await this._initYourToken();
 
   }
@@ -103,12 +142,13 @@ class App extends React.Component {
       [key]: value,
     };
     if (key === 'tokenId') {
-      value = value.toLowerCase().replace(/[^a-z\d]/, '');
+      value = value.replace(/[^a-zA-Z\d]/, '');
       stateChange[key] = value;
       stateChange.tokenAlreadyExists = false;
+      const tokenId = value.toLowerCase();
       if (this.isValidTokenId(value)) {
         stateChange.tokenLoading = true;
-        this._contract.get_token_description({token_id: value}).then((tokenDescription) => {
+        this._contract.get_token({token_id: tokenId}).then((tokenDescription) => {
           if (this.state.tokenId === value) {
             this.setState({
               tokenLoading: false,
@@ -124,16 +164,17 @@ class App extends React.Component {
         })
       }
     }
-    this.setState(stateChange);
+    this.setState(stateChange, () => this.updateRequiredDeposit());
   }
 
-  isValidAccountId(tokenId) {
-    return tokenId.length >= MinAccountIdLen &&
-        tokenId.length <= MaxAccountIdLen &&
-        tokenId.match(ValidAccountRe);
+  isValidAccountId(accountId) {
+    return accountId.length >= MinAccountIdLen &&
+      accountId.length <= MaxAccountIdLen &&
+      accountId.match(ValidAccountRe);
   }
 
   isValidTokenId(tokenId) {
+    tokenId = tokenId.toLowerCase();
     return tokenId.match(ValidTokenIdRe) && this.isValidAccountId(tokenId + '.' + ContractName);
   }
 
@@ -141,6 +182,16 @@ class App extends React.Component {
     if (!this.state.tokenId || (this.isValidTokenId(this.state.tokenId) && this.state.tokenLoading)) {
       return "form-control form-control-large";
     } else if (this.isValidTokenId(this.state.tokenId)) {
+      return "form-control form-control-large is-valid";
+    } else {
+      return "form-control form-control-large is-invalid";
+    }
+  }
+
+  ownerIdClass() {
+    if (!this.state.ownerId || (this.isValidAccountId(this.state.ownerId) && this.state.accountLoading)) {
+      return "form-control form-control-large";
+    } else if (this.isValidAccountId(this.state.ownerId)) {
       return "form-control form-control-large is-valid";
     } else {
       return "form-control form-control-large is-invalid";
@@ -211,18 +262,11 @@ class App extends React.Component {
     this.setState({
       creating: true,
     });
-    window.localStorage.setItem(YourTokenIdKey, this.state.tokenId);
-    await this._contract.create_token({
-      token_description: {
-        token_id: this.state.tokenId,
-        owner_id: this.state.accountId,
-        total_supply: new BN(this.state.totalSupply).mul(new BN(this.state.tokenPrecision)).toString(),
-        precision: this.state.tokenPrecision.toString(),
-        name: this.state.tokenName || null,
-        description: this.state.tokenDescription || null,
-        icon_base64: this.state.tokenIconBase64 || null,
-      }
-    }, GAS, this._minAttachedBalance)
+    const args = this.constructArgs();
+    const requiredDeposit = await this.computeRequiredDeposit(args);
+    ls.set(this.lsKeyToken, args);
+    ls.set(this.lsKeyCreateToken, true);
+    await this._contract.storage_deposit({}, BoatOfGas.toFixed(0), requiredDeposit.toFixed(0));
   }
 
   render() {
@@ -237,27 +281,37 @@ class App extends React.Component {
           </div>
           <h4>Hello, <span className="font-weight-bold">{this.state.accountId}</span>!</h4>
           <p>
-            Issue a new token. It'll cost you <span className="font-weight-bold">{fromYocto(this._minAttachedBalance)} Ⓝ</span>
+            Issue a new token. It'll cost you <span className="font-weight-bold">{fromYocto(this.state.requiredDeposit)} Ⓝ</span>
           </p>
+
           <div className="form-group">
-            <label forhtml="tokenId">Token ID</label>
+            <label forhtml="tokenName">Token Name</label>
             <div className="input-group">
-              <div className="input-group-prepend">
-                <div className="input-group-text">@</div>
-              </div>
+              <input type="text"
+                     className="form-control form-control-large"
+                     id="tokenName"
+                     placeholder="Epic Moon Rocket"
+                     disabled={this.state.creating}
+                     value={this.state.tokenName}
+                     onChange={(e) => this.handleChange('tokenName', e.target.value)}
+              />
+            </div>
+            <small>The token name may be used to display the token in the UI</small>
+          </div>
+
+          <div className="form-group">
+            <label forhtml="tokenId">Token Symbol</label>
+            <div className="input-group">
               <input type="text"
                      className={this.tokenIdClass()}
                      id="tokenId"
-                     placeholder="fdai"
+                     placeholder="MOON"
                      disabled={this.state.creating}
                      value={this.state.tokenId}
                      onChange={(e) => this.handleChange('tokenId', e.target.value)}
               />
-              <div className="input-group-append">
-                <div className="input-group-text">.tf</div>
-              </div>
             </div>
-            <small>It'll be used to uniquely identify the token and to create an Account ID for the token</small>
+            <small>It'll be used to identify the token and to create an Account ID for the token <code>{this.state.tokenId ? (this.state.tokenId.toLowerCase() + '.' + ContractName) : ""}</code></small>
           </div>
 
           <div className="form-group">
@@ -276,53 +330,27 @@ class App extends React.Component {
           </div>
 
           <div className="form-group">
-            <label forhtml="tokenPrecision">Token Precision</label>
+            <label forhtml="tokenDecimals">Token Decimals</label>
             <div className="input-group">
               <input type="number"
                      className="form-control form-control-large"
-                     id="tokenPrecision"
-                     placeholder="1000000000000000000"
+                     id="tokenDecimals"
+                     placeholder="18"
                      disabled={this.state.creating}
-                     value={this.state.tokenPrecision}
-                     onChange={(e) => this.handleChange('tokenPrecision', e.target.value)}
+                     value={this.state.tokenDecimals}
+                     onChange={(e) => this.handleChange('tokenDecimals', e.target.value)}
               />
             </div>
-            <small>Tokens operate on integer numbers. <code>1 / precision</code> is the smallest fractional value of the new token.</small>
-          </div>
-
-          <div className="form-group">
-            <label forhtml="tokenName">Token Name</label>
-            <div className="input-group">
-              <input type="text"
-                     className="form-control form-control-large"
-                     id="tokenName"
-                     placeholder="Fake DAI"
-                     disabled={this.state.creating}
-                     value={this.state.tokenName}
-                     onChange={(e) => this.handleChange('tokenName', e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label forhtml="tokenDescription">Token Description</label>
-            <div className="input-group">
-              <textarea
-                  className="form-control form-control-large"
-                  id="tokenDescription"
-                  placeholder="Fake DAI token. It like a stable token on Ethereum, but it's not really stable, not on Ethereum."
-                  disabled={this.state.creating}
-                  value={this.state.tokenDescription}
-                  onChange={(e) => this.handleChange('tokenDescription', e.target.value)}
-              />
-            </div>
+            <small>Tokens operate on integer numbers. <code>1 / 10**{this.state.tokenDecimals}</code> is the smallest fractional value of the new token.</small>
           </div>
 
           <div className="form-group">
             <label forhtml="tokenIcon">Token Icon</label>
             <div className="input-group">
               <div>
-                <img className="rounded token-icon" style={{marginRight: '1em'}} src={this.state.tokenIconBase64 || DefaultTokenIcon} alt="Token Icon"/>
+                {this.state.tokenIconBase64 && (
+                  <img className="rounded token-icon" style={{marginRight: '1em'}} src={this.state.tokenIconBase64} alt="Token Icon"/>
+                )}
               </div>
               <div>
                 <Files
@@ -342,11 +370,26 @@ class App extends React.Component {
           </div>
 
           <div className="form-group">
+            <label forhtml="ownerId">Owner Account ID</label>
+            <div className="input-group">
+              <input type="text"
+                     className={this.ownerIdClass()}
+                     id="ownerId"
+                     placeholder={this.state.accountId}
+                     disabled={this.state.creating}
+                     value={this.state.ownerId}
+                     onChange={(e) => this.handleChange('ownerId', e.target.value)}
+              />
+            </div>
+            <small>This account will own the total supply of the newly created token</small>
+          </div>
+
+          <div className="form-group">
             <div>
               <button
                   className="btn btn-success"
                   disabled={this.state.creating || !this.isValidTokenId(this.state.tokenId) || this.state.tokenLoading || this.state.tokenAlreadyExists}
-                  onClick={() => this.createToken()}>Create Token ({fromYocto(this._minAttachedBalance)} Ⓝ)</button>
+                  onClick={() => this.createToken()}>Create Token ({fromYocto(this.state.requiredDeposit)} Ⓝ)</button>
             </div>
           </div>
           <hr/>
@@ -361,12 +404,12 @@ class App extends React.Component {
     const tokens = this.state.connected && (
         <div>
           <h3>Tokens</h3>
-          <Tokens contract={this._contract}/>
+          <Tokens contract={this._contract} lsKeyCachedTokens={this.lsKeyCachedTokens}/>
         </div>
     );
     return (
         <div>
-          <h1>Token Factory</h1>
+          <h1>Fungible Token Factory</h1>
           <div style={{minHeight: "10em"}}>
             {content}
           </div>

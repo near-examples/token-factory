@@ -1,6 +1,6 @@
 [package]
 name = "token-factory"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["Near Inc <hello@nearprotocol.com>"]
 edition = "2018"
 
@@ -8,8 +8,8 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "1.0.1"
-utils = { path = "../utils"}
+near-sdk = "3.1.0"
+near-contract-standards = "3.1.0"
 
 [profile.release]
 codegen-units = 1

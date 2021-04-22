@@ -2,7 +2,11 @@ import React from 'react';
 import { useTable } from 'react-table'
 import BTable from 'react-bootstrap/Table';
 import DefaultTokenIcon from './default-token.jpg';
-import BN from 'bn.js';
+import Big from 'big.js';
+import ls from "local-storage";
+
+export const ContractName = 'dev-1619117189931-7277880';
+const ExplorerBaseUrl = 'https://explorer.testnet.near.org';
 
 function Table({ columns, data }) {
     // Use the state and functions returned from useTable to build your UI
@@ -50,36 +54,33 @@ export class Tokens extends React.Component {
         super(props);
 
         this.state = {
-            tokens: JSON.parse(localStorage.getItem("cached_tokens") || '[]'),
+            tokens: ls.get(props.lsKeyCachedTokens) || [],
         };
         this.columns = [
             {
                 Header: 'Icon',
-                accessor: 'icon_base64',
-                Cell: ({row}) => <img className="rounded token-icon" src={row.original.icon_base64 || DefaultTokenIcon} alt="Icon"/>
+                accessor: 'icon',
+                Cell: ({row}) => <img className="rounded token-icon" src={row.original.metadata.icon || DefaultTokenIcon} alt="Icon"/>
             },
             {
-                Header: 'ID',
+                Header: 'Symbol',
                 accessor: 'token_id',
-                Cell: ({row}) => <a href={`https://explorer.nearprotocol.com/accounts/${row.original.token_id}.tf`}>{row.original.token_id}</a>
+                Cell: ({row}) => <a href={`${ExplorerBaseUrl}/accounts/${row.original.metadata.symbol.toLowerCase()}.${ContractName}`}>{row.original.metadata.symbol}</a>
             },
             {
                 Header: () => <span style={{whiteSpace: 'nowrap'}}>Token Name</span>,
                 accessor: 'name',
+                Cell: ({row}) => row.original.metadata.name
             },
             {
                 Header: 'Owner ID',
                 accessor: 'owner_id',
-                Cell: ({row}) => <a href={`https://explorer.nearprotocol.com/accounts/${row.original.owner_id}`}>{row.original.owner_id}</a>
+                Cell: ({row}) => <a href={`{ExplorerBaseUrl}/accounts/${row.original.owner_id}`}>{row.original.owner_id}</a>
             },
             {
                 Header: 'Total Supply',
                 accessor: 'total_supply',
-                Cell: ({row}) => new BN(row.original.total_supply).div(new BN(row.original.precision)).toString()
-            },
-            {
-                Header: 'Description',
-                accessor: 'description',
+                Cell: ({row}) => Big(row.original.total_supply).div(Big(10).pow(row.original.metadata.decimals)).round(0, 0).toFixed(0)
             },
         ];
         this._initialized = false;
@@ -100,12 +101,12 @@ export class Tokens extends React.Component {
         const tokens = JSON.parse(JSON.stringify(this.state.tokens));
         const limit = 5;
         for (let i = tokens.length; i < numTokens; i += limit) {
-            const newTokens = await contract.get_token_descriptions({from_index: i, limit});
+            const newTokens = await contract.get_tokens({from_index: i, limit});
             tokens.push(...newTokens);
-            localStorage.setItem("cached_tokens", JSON.stringify(tokens));
+            ls.set(this.props.lsKeyCachedTokens, tokens);
             console.log(tokens);
             this.setState({
-                tokens: JSON.parse(localStorage.getItem("cached_tokens") || '[]'),
+                tokens: ls.get(this.props.lsKeyCachedTokens) || [],
             })
         }
     }
@@ -127,7 +128,7 @@ export class Tokens extends React.Component {
         const columns = this.columns;
         const data = this.state.tokens;
         return (
-            <div>
+            <div className="tokens-table">
                 <Table columns={columns} data={data} />
             </div>
         );

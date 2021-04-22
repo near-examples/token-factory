@@ -1,165 +1,152 @@
+use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::serde::Serialize;
+use near_sdk::collections::{LookupMap, UnorderedMap};
+use near_sdk::env::STORAGE_PRICE_PER_BYTE;
+use near_sdk::json_types::{ValidAccountId, U128};
+use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::serde_json;
-use near_sdk::collections::UnorderedMap;
-use near_sdk::{env, near_bindgen, Promise, Gas, Balance};
-use near_sdk::json_types::U128;
+use near_sdk::{
+    env, near_bindgen, AccountId, Balance, BorshStorageKey, Gas, PanicOnDefault, Promise,
+};
 
-use utils::{TokenId, TokenDescription};
+near_sdk::setup_alloc!();
 
-#[global_allocator]
-static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
+const FT_WASM_CODE: &[u8] = include_bytes!("../../token/res/fungible_token.wasm");
 
-const MIN_ATTACHED_BALANCE: Balance = 25_000_000_000_000_000_000_000_000;
-const GAS: Gas = 10_000_000_000_000;
+const EXTRA_BYTES: usize = 10000;
+const GAS: Gas = 50_000_000_000_000;
+type TokenId = String;
+
+pub fn is_valid_token_id(token_id: &TokenId) -> bool {
+    for c in token_id.as_bytes() {
+        match c {
+            b'0'..=b'9' | b'a'..=b'z' => (),
+            _ => return false,
+        }
+    }
+    true
+}
+
+#[derive(BorshSerialize, BorshStorageKey)]
+enum StorageKey {
+    Tokens,
+    StorageDeposits,
+}
 
 #[near_bindgen]
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct TokenFactory {
-    tokens: UnorderedMap<TokenId, TokenDescription>,
+    pub tokens: UnorderedMap<TokenId, TokenArgs>,
+    pub storage_deposits: LookupMap<AccountId, Balance>,
+    pub storage_balance_cost: Balance,
 }
 
-impl Default for TokenFactory {
-    fn default() -> Self {
-        env::panic(b"Not initialized yet.");
-    }
-}
-
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
-struct TokenNewArgs {
-    token_description: TokenDescription,
+pub struct TokenArgs {
+    owner_id: ValidAccountId,
+    total_supply: U128,
+    metadata: FungibleTokenMetadata,
 }
 
 #[near_bindgen]
 impl TokenFactory {
     #[init]
     pub fn new() -> Self {
-        assert!(!env::state_exists(), "The contract is already initialized");
+        let mut storage_deposits = LookupMap::new(StorageKey::StorageDeposits);
+
+        let initial_storage_usage = env::storage_usage();
+        let tmp_account_id = "a".repeat(64);
+        storage_deposits.insert(&tmp_account_id, &0);
+        let storage_balance_cost =
+            Balance::from(env::storage_usage() - initial_storage_usage) * STORAGE_PRICE_PER_BYTE;
+        storage_deposits.remove(&tmp_account_id);
+
         Self {
-            tokens: UnorderedMap::new(b"t".to_vec()),
+            tokens: UnorderedMap::new(StorageKey::Tokens),
+            storage_deposits,
+            storage_balance_cost,
         }
     }
 
-    pub fn get_min_attached_balance(&self) -> U128 {
-        MIN_ATTACHED_BALANCE.into()
+    fn get_min_attached_balance(&self, args: &TokenArgs) -> u128 {
+        ((FT_WASM_CODE.len() + EXTRA_BYTES + args.try_to_vec().unwrap().len() * 2) as Balance
+            * STORAGE_PRICE_PER_BYTE)
+            .into()
+    }
+
+    pub fn get_required_deposit(&self, args: TokenArgs, account_id: ValidAccountId) -> U128 {
+        let args_deposit = self.get_min_attached_balance(&args);
+        if let Some(previous_balance) = self.storage_deposits.get(account_id.as_ref()) {
+            args_deposit.saturating_sub(previous_balance).into()
+        } else {
+            (self.storage_balance_cost + args_deposit).into()
+        }
+    }
+
+    #[payable]
+    pub fn storage_deposit(&mut self) {
+        let account_id = env::predecessor_account_id();
+        let deposit = env::attached_deposit();
+        if let Some(previous_balance) = self.storage_deposits.get(&account_id) {
+            self.storage_deposits
+                .insert(&account_id, &(previous_balance + deposit));
+        } else {
+            assert!(deposit >= self.storage_balance_cost, "Deposit is too low");
+            self.storage_deposits
+                .insert(&account_id, &(deposit - self.storage_balance_cost));
+        }
     }
 
     pub fn get_number_of_tokens(&self) -> u64 {
         self.tokens.len()
     }
 
-    pub fn get_token_descriptions(&self, from_index: u64, limit: u64) -> Vec<TokenDescription> {
+    pub fn get_tokens(&self, from_index: u64, limit: u64) -> Vec<TokenArgs> {
         let tokens = self.tokens.values_as_vector();
-        if from_index >= tokens.len() {
-            return Vec::new();
-        }
-        let n = std::cmp::min(tokens.len() - from_index, limit);
-        let mut result = Vec::with_capacity(n as usize);
-        for index in from_index..from_index+n {
-            result.push(tokens.get(index).unwrap());
-        }
-        result
+        (from_index..std::cmp::min(from_index + limit, tokens.len()))
+            .filter_map(|index| tokens.get(index))
+            .collect()
     }
 
-    pub fn get_token_description(&self, token_id: TokenId) -> Option<TokenDescription> {
+    pub fn get_token(&self, token_id: TokenId) -> Option<TokenArgs> {
         self.tokens.get(&token_id)
     }
 
-    #[payable]
-    pub fn create_token(&mut self, token_description: TokenDescription) -> Promise {
-        assert!(env::attached_deposit() >= MIN_ATTACHED_BALANCE, "Not enough attached deposit to complete token creation");
+    pub fn create_token(&mut self, args: TokenArgs) -> Promise {
+        args.metadata.assert_valid();
+        let token_id = args.metadata.symbol.to_ascii_lowercase();
+        let token_account_id = format!("{}.{}", token_id, env::current_account_id());
+        assert!(
+            env::is_valid_account_id(token_account_id.as_bytes()),
+            "Token Account ID is invalid"
+        );
 
-        let token_account_id = format!("{}.{}", token_description.token_id, env::current_account_id());
-        assert!(env::is_valid_account_id(token_account_id.as_bytes()), "Token Account ID is invalid");
+        let account_id = env::predecessor_account_id();
 
-        assert!(self.tokens.insert(&token_description.token_id, &token_description).is_none(), "Token ID is already exists");
+        let required_balance = self.get_min_attached_balance(&args);
+        let user_balance = self.storage_deposits.get(&account_id).unwrap_or(0);
+        assert!(
+            user_balance >= required_balance,
+            "Not enough required balance"
+        );
+        self.storage_deposits
+            .insert(&account_id, &(user_balance - required_balance));
+
+        let initial_storage_usage = env::storage_usage();
+
+        assert!(
+            self.tokens.insert(&token_id, &args).is_none(),
+            "Token ID is already taken"
+        );
+
+        let storage_balance_used =
+            Balance::from(env::storage_usage() - initial_storage_usage) * STORAGE_PRICE_PER_BYTE;
 
         Promise::new(token_account_id)
             .create_account()
-            .transfer(env::attached_deposit())
-            .deploy_contract(
-                include_bytes!("../../token/res/fungible_token.wasm").to_vec(),
-            )
-            .function_call(b"new".to_vec(), serde_json::to_vec(&TokenNewArgs {
-                token_description,
-            }).unwrap(), 0, GAS)
+            .transfer(required_balance - storage_balance_used)
+            .deploy_contract(FT_WASM_CODE.to_vec())
+            .function_call(b"new".to_vec(), serde_json::to_vec(&args).unwrap(), 0, GAS)
     }
-
-}
-
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(test)]
-mod tests {
-    use near_sdk::{MockedBlockchain, testing_env, VMContext, AccountId};
-
-    use super::*;
-
-    fn alice() -> AccountId {
-        "alice.near".to_string()
-    }
-
-    fn bob() -> AccountId {
-        "bob.near".to_string()
-    }
-
-    fn carol() -> AccountId {
-        "carol.near".to_string()
-    }
-
-    fn get_context(predecessor_account_id: AccountId) -> VMContext {
-        VMContext {
-            current_account_id: alice(),
-            signer_account_id: bob(),
-            signer_account_pk: vec![0, 1, 2],
-            predecessor_account_id,
-            input: vec![],
-            block_index: 0,
-            block_timestamp: 0,
-            account_balance: 0,
-            account_locked_balance: 0,
-            storage_usage: 10u64.pow(6),
-            attached_deposit: 0,
-            prepaid_gas: 10u64.pow(18),
-            random_seed: vec![0, 1, 2],
-            is_view: false,
-            output_data_receivers: vec![],
-            epoch_height: 0,
-        }
-    }
-
-    #[test]
-    fn test_new() {
-        let context = get_context(carol());
-        testing_env!(context);
-        let contract = TokenFactory::new();
-        assert_eq!(contract.get_min_attached_balance().0, MIN_ATTACHED_BALANCE);
-        assert_eq!(contract.get_number_of_tokens(), 0);
-        assert!(contract.get_token_descriptions(0, 10).is_empty());
-    }
-
-    #[test]
-    fn test_create_token() {
-        let mut context = get_context(carol());
-        context.attached_deposit = MIN_ATTACHED_BALANCE;
-        testing_env!(context);
-        let mut contract = TokenFactory::new();
-
-        let _promise = contract.create_token(TokenDescription {
-            token_id: "token".to_string(),
-            owner_id: bob(),
-            total_supply: 1_000_000_000_000_000_000.into(),
-            precision: 1_000_000_000.into(),
-            name: Some("token".to_string()),
-            description: None,
-            icon_base64: None,
-        });
-
-        assert_eq!(contract.get_number_of_tokens(), 1);
-        let tokens = contract.get_token_descriptions(0, 10);
-        assert_eq!(tokens.len(), 1);
-        assert_eq!(tokens[0].token_id, "token".to_string());
-    }
-
 }

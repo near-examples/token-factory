@@ -8,13 +8,16 @@
     "@testing-library/react": "^9.3.2",
     "@testing-library/user-event": "^7.1.2",
     "bn.js": "^5.1.1",
-    "near-api-js": "^0.29.0",
+    "near-api-js": "^0.38.0",
     "react": "^16.13.1",
     "react-bootstrap": "^1.0.0",
     "react-dom": "^16.13.1",
     "react-files": "^2.4.8",
     "react-scripts": "3.4.0",
-    "react-table": "^7.0.4"
+    "react-table": "^7.0.4",
+    "lodash": "^4.17.21",
+    "big.js": "^6.0.3",
+    "local-storage": "^2.0.0"
   },
   "scripts": {
     "start": "react-scripts start",
