@@ -104,7 +104,6 @@ export class Tokens extends React.Component {
             const newTokens = await contract.get_tokens({from_index: i, limit});
             tokens.push(...newTokens);
             ls.set(this.props.lsKeyCachedTokens, tokens);
-            console.log(tokens);
             this.setState({
                 tokens: ls.get(this.props.lsKeyCachedTokens) || [],
             })
