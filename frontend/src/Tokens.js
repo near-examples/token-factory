@@ -75,7 +75,7 @@ export class Tokens extends React.Component {
             {
                 Header: 'Owner ID',
                 accessor: 'owner_id',
-                Cell: ({row}) => <a href={`{ExplorerBaseUrl}/accounts/${row.original.owner_id}`}>{row.original.owner_id}</a>
+                Cell: ({row}) => <a href={`${ExplorerBaseUrl}/accounts/${row.original.owner_id}`}>{row.original.owner_id}</a>
             },
             {
                 Header: 'Total Supply',
