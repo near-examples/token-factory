@@ -24,7 +24,7 @@ class App extends React.Component {
   constructor(props) {
     super(props);
 
-    this.lsKey = ContractName + ':v01:';
+    this.lsKey = ContractName + ':v02:';
     this.lsKeyToken = this.lsKey + "token";
     this.lsKeyCachedTokens = this.lsKey + "cachedTokens";
     this.lsKeyCreateToken = this.lsKey + "createToken";
