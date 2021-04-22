@@ -1,12 +1,12 @@
 import React from 'react';
 import { useTable } from 'react-table'
 import BTable from 'react-bootstrap/Table';
-import DefaultTokenIcon from './default-token.jpg';
+import DefaultTokenIcon from './default-token.png';
 import Big from 'big.js';
 import ls from "local-storage";
 
-export const ContractName = 'tokens.testnet';
-const ExplorerBaseUrl = 'https://explorer.testnet.near.org';
+export const ContractName = 'tkn.near';
+const ExplorerBaseUrl = 'https://explorer.near.org';
 
 function Table({ columns, data }) {
     // Use the state and functions returned from useTable to build your UI

@@ -18,7 +18,7 @@ const ValidTokenIdRe = /^[a-z\d]+$/
 const TGas = Big(10).pow(12);
 const BoatOfGas = Big(200).mul(TGas);
 
-const fromYocto = (a) => a && Big(a).div(OneNear).toFixed(3);
+const fromYocto = (a) => a && Big(a).div(OneNear).toFixed(6);
 
 class App extends React.Component {
   constructor(props) {
@@ -134,10 +134,10 @@ class App extends React.Component {
 
   async _initNear() {
     const nearConfig = {
-      networkId: 'default',
-      nodeUrl: 'https://rpc.testnet.near.org',
+      networkId: 'mainnet',
+      nodeUrl: 'https://rpc.mainnet.near.org',
       contractName: ContractName,
-      walletUrl: 'https://wallet.testnet.near.org',
+      walletUrl: 'https://wallet.near.org',
     };
     const keyStore = new nearAPI.keyStores.BrowserLocalStorageKeyStore();
     const near = await nearAPI.connect(Object.assign({ deps: { keyStore } }, nearConfig));
@@ -479,7 +479,7 @@ class App extends React.Component {
     );
     return (
         <div>
-          <h1>Fungible Token Factory</h1>
+          <h1>Token Farm</h1>
           <div style={{minHeight: "10em"}}>
             {content}
           </div>
