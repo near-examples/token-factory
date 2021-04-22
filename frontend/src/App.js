@@ -38,6 +38,9 @@ class App extends React.Component {
       tokenLoading: false,
       tokenAlreadyExists: false,
 
+      accountLoading: false,
+      accountExists: true,
+
       tokenId: "",
       totalSupply: Big("1000000000"),
       tokenDecimals: 18,
@@ -51,7 +54,7 @@ class App extends React.Component {
         connected: true,
         signedIn: !!this._accountId,
         accountId: this._accountId,
-        ownerId: this._accountId,
+        ownerId: this._ownerId,
       })
     })
   }
@@ -65,7 +68,20 @@ class App extends React.Component {
         this.setState({
           creating: true,
         });
-        await this._contract.create_token({args}, BoatOfGas.toFixed(0));
+        const requiredDeposit = await this.computeRequiredDeposit(args);
+        if (requiredDeposit.eq(0)) {
+          await this._contract.create_token({args}, BoatOfGas.toFixed(0));
+        } else {
+          this._ownerId = args.owner_id;
+          this.setState({
+            tokenId: args.metadata.symbol,
+            totalSupply: Big(args.total_supply).div(Big(10).pow(args.metadata.decimals)),
+            tokenDecimals: args.metadata.decimals,
+            tokenName: args.metadata.name,
+            tokenIconBase64: args.metadata.icon,
+          })
+          // Transaction was canceled.
+        }
         ls.remove(this.lsKeyToken);
         this.setState({
           creating: false,
@@ -131,6 +147,7 @@ class App extends React.Component {
 
     this._walletConnection = new nearAPI.WalletConnection(near, ContractName);
     this._accountId = this._walletConnection.getAccountId();
+    this._ownerId = this._accountId;
 
     this._account = this._walletConnection.account();
     this._contract = new nearAPI.Contract(this._account, ContractName, {
@@ -181,6 +198,27 @@ class App extends React.Component {
           }
         })
       }
+    } else if (key === 'ownerId') {
+      value = value.replace(/[^a-z\-_\d]/, '');
+      stateChange[key] = value;
+      stateChange.accountExists = true;
+      if (this.isValidTokenId(value)) {
+        stateChange.accountLoading = true;
+        this._near.connection.provider.query(`account/${value}`, '').then((_a) => {
+          if (this.state.ownerId === value) {
+            this.setState({
+              accountLoading: false,
+            })
+          }
+        }).catch((e) => {
+          if (this.state.ownerId === value) {
+            this.setState({
+              accountLoading: false,
+              accountExists: false,
+            })
+          }
+        })
+      }
     }
     this.setState(stateChange, () => this.updateRequiredDeposit());
   }
@@ -199,7 +237,7 @@ class App extends React.Component {
   tokenIdClass() {
     if (!this.state.tokenId || (this.isValidTokenId(this.state.tokenId) && this.state.tokenLoading)) {
       return "form-control form-control-large";
-    } else if (this.isValidTokenId(this.state.tokenId)) {
+    } else if (this.isValidTokenId(this.state.tokenId) && !this.state.tokenAlreadyExists) {
       return "form-control form-control-large is-valid";
     } else {
       return "form-control form-control-large is-invalid";
@@ -209,7 +247,7 @@ class App extends React.Component {
   ownerIdClass() {
     if (!this.state.ownerId || (this.isValidAccountId(this.state.ownerId) && this.state.accountLoading)) {
       return "form-control form-control-large";
-    } else if (this.isValidAccountId(this.state.ownerId)) {
+    } else if (this.isValidAccountId(this.state.ownerId) && this.state.accountExists) {
       return "form-control form-control-large is-valid";
     } else {
       return "form-control form-control-large is-invalid";
@@ -333,6 +371,11 @@ class App extends React.Component {
                      onChange={(e) => this.handleChange('tokenId', e.target.value)}
               />
             </div>
+            {this.state.tokenAlreadyExists && (
+              <div>
+                <small><b>Token Symbol already exists.</b></small>
+              </div>
+            )}
             <small>It'll be used to identify the token and to create an Account ID for the token <code>{this.state.tokenId ? (this.state.tokenId.toLowerCase() + '.' + ContractName) : ""}</code></small>
           </div>
 
@@ -403,6 +446,11 @@ class App extends React.Component {
                      onChange={(e) => this.handleChange('ownerId', e.target.value)}
               />
             </div>
+            {!this.state.accountExists && (
+              <div>
+                <small><b>Account doesn't exists.</b></small>
+              </div>
+            )}
             <small>This account will own the total supply of the newly created token</small>
           </div>
 
