@@ -10,6 +10,7 @@ const UploadResizeWidth = 96;
 const UploadResizeHeight = 96;
 
 const OneNear = Big(10).pow(24);
+const MaxU128 = Big(2).pow(128).sub(1);
 const MinAccountIdLen = 2;
 const MaxAccountIdLen = 64;
 const ValidAccountRe = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
@@ -66,6 +67,9 @@ class App extends React.Component {
         });
         await this._contract.create_token({args}, BoatOfGas.toFixed(0));
         ls.remove(this.lsKeyToken);
+        this.setState({
+          creating: false,
+        });
       }
     }
 
@@ -141,7 +145,21 @@ class App extends React.Component {
     const stateChange = {
       [key]: value,
     };
-    if (key === 'tokenId') {
+    if (key === 'tokenDecimals') {
+      value = parseInt(value);
+      value = Math.max(0, Math.min(24, value));
+      stateChange[key] = value;
+    } else if (key === 'totalSupply') {
+      value = value ? Big(value) : Big(1);
+      const dec = Big(10).pow(this.state.tokenDecimals);
+      const intTotalSupply = value.mul(dec).round(0, 0);
+      if (intTotalSupply.lt(1)) {
+        value = Big(1)
+      } else if (intTotalSupply.gt(MaxU128)) {
+        value = MaxU128.div(dec).round(0, 0);
+      }
+      stateChange[key] = value;
+    } else if (key === 'tokenId') {
       value = value.replace(/[^a-zA-Z\d]/, '');
       stateChange[key] = value;
       stateChange.tokenAlreadyExists = false;
@@ -270,7 +288,11 @@ class App extends React.Component {
   }
 
   render() {
-    const content = !this.state.connected ? (
+    const content = !this.state.connected && this.state.creating ? (
+      <div>
+        <div>Creating your token... <span className="spinner-grow spinner-grow-lg" role="status" aria-hidden="true"></span></div>
+      </div>
+    ) : !this.state.connected ? (
         <div>Connecting... <span className="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span></div>
     ) : (this.state.signedIn ? (
         <div>

@@ -116,6 +116,7 @@ impl TokenFactory {
     pub fn create_token(&mut self, args: TokenArgs) -> Promise {
         args.metadata.assert_valid();
         let token_id = args.metadata.symbol.to_ascii_lowercase();
+        assert!(is_valid_token_id(&token_id), "Invalid Symbol");
         let token_account_id = format!("{}.{}", token_id, env::current_account_id());
         assert!(
             env::is_valid_account_id(token_account_id.as_bytes()),
