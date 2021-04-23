@@ -95,7 +95,7 @@ export class Tokens extends React.Component {
             {
                 Header: 'Wallet',
                 accessor: 'wallet',
-                Cell: ({row}) => <button
+                Cell: ({row}) => props.accountId && <button
                   className="btn btn-outline-success"
                   onClick={() => props.registerToken(row.original.metadata.symbol)}>Add to Wallet</button>
             },
