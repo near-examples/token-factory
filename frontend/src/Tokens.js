@@ -82,6 +82,13 @@ export class Tokens extends React.Component {
                 accessor: 'total_supply',
                 Cell: ({row}) => Big(row.original.total_supply).div(Big(10).pow(row.original.metadata.decimals)).round(0, 0).toFixed(0)
             },
+            {
+                Header: 'Wallet',
+                accessor: 'wallet',
+                Cell: ({row}) => <button
+                  className="btn btn-outline-success"
+                  onClick={() => props.registerToken(row.original.metadata.symbol)}>Add <b>{row.original.metadata.symbol}</b> to NEAR Wallet</button>
+            },
         ];
         this._initialized = false;
     }
