@@ -11,6 +11,7 @@ const UploadResizeHeight = 96;
 
 const OneNear = Big(10).pow(24);
 const MaxU128 = Big(2).pow(128).sub(1);
+const StorageDeposit = Big(125).mul(Big(10).pow(19));
 const MinAccountIdLen = 2;
 const MaxAccountIdLen = 64;
 const ValidAccountRe = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
@@ -37,6 +38,7 @@ class App extends React.Component {
       accountId: null,
       tokenLoading: false,
       tokenAlreadyExists: false,
+      readyForWalletWhitelist: false,
 
       accountLoading: false,
       accountExists: true,
@@ -85,6 +87,12 @@ class App extends React.Component {
         ls.remove(this.lsKeyToken);
         this.setState({
           creating: false,
+          readyForWalletWhitelist: true,
+          tokenId: args.metadata.symbol,
+          totalSupply: Big(args.total_supply).div(Big(10).pow(args.metadata.decimals)),
+          tokenDecimals: args.metadata.decimals,
+          tokenName: args.metadata.name,
+          tokenIconBase64: args.metadata.icon,
         });
       }
     }
@@ -262,6 +270,16 @@ class App extends React.Component {
     )
   }
 
+  async requestWhitelist(tokenId) {
+    const tokenContractId = tokenId.toLowerCase() + '.' + ContractName;
+    const tokenContract = new nearAPI.Contract(this._account, tokenContractId, {
+      changeMethods: ['storage_deposit'],
+    });
+    await tokenContract.storage_deposit({
+      registration_only: true,
+    }, BoatOfGas.toFixed(0), StorageDeposit.toFixed(0));
+  }
+
   async logOut() {
     this._walletConnection.signOut();
     this._accountId = null;
@@ -332,6 +350,17 @@ class App extends React.Component {
       </div>
     ) : !this.state.connected ? (
         <div>Connecting... <span className="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span></div>
+    ) : this.state.readyForWalletWhitelist ? (
+      <div>
+        <div className="alert alert-success" role="alert">
+          The token <b>{this.state.tokenId}</b> was successfully created!
+        </div>
+        <div>
+          <button
+            className="btn btn-success"
+            onClick={() => this.requestWhitelist(this.state.tokenId)}>Add <b>{this.state.tokenId}</b> to your NEAR Wallet</button>
+        </div>
+      </div>
     ) : (this.state.signedIn ? (
         <div>
           <div className="float-right">
@@ -474,7 +503,7 @@ class App extends React.Component {
     const tokens = this.state.connected && (
         <div>
           <h3>Tokens</h3>
-          <Tokens contract={this._contract} lsKeyCachedTokens={this.lsKeyCachedTokens}/>
+          <Tokens contract={this._contract} lsKeyCachedTokens={this.lsKeyCachedTokens} registerToken={(tokenId) => this.requestWhitelist(tokenId)}/>
         </div>
     );
     return (
