@@ -503,7 +503,10 @@ class App extends React.Component {
     const tokens = this.state.connected && (
         <div>
           <h3>Tokens</h3>
-          <Tokens contract={this._contract} lsKeyCachedTokens={this.lsKeyCachedTokens} registerToken={(tokenId) => this.requestWhitelist(tokenId)}/>
+          <Tokens contract={this._contract}
+                  lsKeyCachedTokens={this.lsKeyCachedTokens}
+                  registerToken={(tokenId) => this.requestWhitelist(tokenId)}
+          />
         </div>
     );
     return (
