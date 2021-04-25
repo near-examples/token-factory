@@ -19,6 +19,7 @@ const StorageDeposit = Big(125).mul(Big(10).pow(19));
 const PoolStorageDeposit = Big(500).mul(Big(10).pow(19));
 
 const SortedByLiquidity = 'liquidity';
+const SortedByYourTokens = 'your';
 const SortedByIndex = 'index';
 
 const ot = (pool, token) => (token in pool.tokens) ? pool.tt[1 - pool.tt.indexOf(token)] : null;
@@ -70,13 +71,15 @@ export class Tokens extends React.Component {
   constructor(props) {
     super(props);
     this.tokens = ls.get(props.lsKeyCachedTokens) || [];
+    this.lsKey = props.lsKey;
+    this.lsKeySortedBy = this.lsKey + 'sortedBy';
 
     this.state = {
       tokens: [...this.tokens],
       prices: {},
       liquidity: {},
       bestPool: {},
-      sortedBy: SortedByLiquidity,
+      sortedBy: ls.get(this.lsKeySortedBy) || SortedByLiquidity,
     };
     this.columns = [
       {
@@ -276,6 +279,12 @@ export class Tokens extends React.Component {
         const liqB = this.poolLiquidity(b.metadata.symbol);
         return liqB.sub(liqA).toNumber()
       })
+    } else if (this.state.sortedBy === SortedByYourTokens) {
+      tokens.sort((a, b) => {
+        const va = (a.owner_id === this._accountId) ? 1 : 0;
+        const vb = (b.owner_id === this._accountId) ? 1 : 0;
+        return vb - va;
+      })
     }
     return tokens;
   }
@@ -295,8 +304,9 @@ export class Tokens extends React.Component {
 
   updateTokens() {
     this.setState({
-      tokens: this.sortTokens(ls.get(this.props.lsKeyCachedTokens) || []),
+      tokens: this.sortTokens([...(ls.get(this.props.lsKeyCachedTokens) || [])]),
     })
+    ls.set(this.lsKeySortedBy, this.state.sortedBy);
   }
 
   async refreshRefBalances() {
@@ -415,6 +425,11 @@ export class Tokens extends React.Component {
               className={`btn ${this.state.sortedBy === SortedByLiquidity ? 'btn-secondary' : 'btn-outline-secondary'}`}
               onClick={() => this.setState({sortedBy: SortedByLiquidity}, () => this.updateTokens())}
             >Liquidity</button>
+            <button
+              type="button"
+              className={`btn ${this.state.sortedBy === SortedByYourTokens ? 'btn-secondary' : 'btn-outline-secondary'}`}
+              onClick={() => this.setState({sortedBy: SortedByYourTokens}, () => this.updateTokens())}
+            >Your tokens</button>
             <button
               type="button"
               className={`btn ${this.state.sortedBy === SortedByIndex ? 'btn-secondary' : 'btn-outline-secondary'}`}

@@ -504,6 +504,7 @@ class App extends React.Component {
         <div>
           <h3>Tokens</h3>
           <Tokens contract={this._contract}
+                  lsKey={this.lsKey}
                   lsKeyCachedTokens={this.lsKeyCachedTokens}
                   registerToken={(tokenId) => this.requestWhitelist(tokenId)}
                   accountId={this.state.accountId}
