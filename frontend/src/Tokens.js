@@ -14,7 +14,7 @@ const wNEAR = 'wrap.near';
 export const OneNear = Big(10).pow(24);
 const TGas = Big(10).pow(12);
 export const BoatOfGas = Big(200).mul(TGas);
-const RefStorageDeposit = Big(84).mul(Big(10).pow(19)).add(1);
+const RefStorageDeposit = Big(250).mul(Big(10).pow(19)).add(1);
 const StorageDeposit = Big(125).mul(Big(10).pow(19));
 const PoolStorageDeposit = Big(500).mul(Big(10).pow(19));
 
@@ -73,6 +73,7 @@ export class Tokens extends React.Component {
     this.tokens = ls.get(props.lsKeyCachedTokens) || [];
     this.lsKey = props.lsKey;
     this.lsKeySortedBy = this.lsKey + 'sortedBy';
+    this.balances = {};
 
     this.state = {
       tokens: [...this.tokens],
