@@ -188,7 +188,13 @@ export class Tokens extends React.Component {
     }, BoatOfGas.toFixed(0), StorageDeposit.toFixed(0));
   }
 
-  async refDepositToken(tokenAccountId, amount) {
+  async refDepositToken(tokenAccountId) {
+    const tokenContract = new nearAPI.Contract(this._account, tokenAccountId, {
+      viewMethods: ['ft_balance_of']
+    });
+    let amount = await tokenContract.ft_balance_of({
+      account_id: this._accountId,
+    })
     await this._account.signAndSendTransaction(tokenAccountId, [
       nearAPI.transactions.functionCall("storage_deposit", {
         account_id: RefContractId,
@@ -196,7 +202,7 @@ export class Tokens extends React.Component {
       }, TGas.mul(5).toFixed(0), StorageDeposit.toFixed(0)),
       nearAPI.transactions.functionCall("ft_transfer_call", {
         receiver_id: RefContractId,
-        amount: amount.toFixed(0),
+        amount,
         msg: "",
       }, TGas.mul(100).toFixed(0), "1"),
     ])
@@ -229,7 +235,7 @@ export class Tokens extends React.Component {
       return (
         <button
           className="btn btn-outline-success"
-          onClick={() => this.refDepositToken(tokenAccountId, Big(token.total_supply))}>
+          onClick={() => this.refDepositToken(tokenAccountId)}>
           Deposit <b>{tokenId}</b>
         </button>
       )
