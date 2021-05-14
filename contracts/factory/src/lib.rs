@@ -113,7 +113,11 @@ impl TokenFactory {
         self.tokens.get(&token_id)
     }
 
+    #[payable]
     pub fn create_token(&mut self, args: TokenArgs) -> Promise {
+        if env::attached_deposit() > 0 {
+            self.storage_deposit();
+        }
         args.metadata.assert_valid();
         let token_id = args.metadata.symbol.to_ascii_lowercase();
         assert!(is_valid_token_id(&token_id), "Invalid Symbol");
