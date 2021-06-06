@@ -139,7 +139,7 @@ export class Tokens extends React.Component {
                     className="btn btn-outline-success"
                     target="_blank"
                     rel="noopener noreferrer"
-                    href={`https://app.ref.finance/pools/${bestPool.index}`}>
+                    href={`https://app.ref.finance/pool/${bestPool.index}`}>
                     Add Liquidity
                   </a>
                 ) : this.renderListingToken(row.original))
