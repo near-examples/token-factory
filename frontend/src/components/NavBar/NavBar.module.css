@@ -1,0 +1,60 @@
+.root {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    background-color: #222222;
+    color: white;
+    overflow-y: auto;
+}
+
+.root::-webkit-scrollbar {
+    display: none;
+}
+
+.headerBlock {
+    padding: 23px 40px 0;
+    font-size: 24px;
+}
+
+.listBlock {
+    padding: 25px 40px 0;
+}
+
+.listBlock ul {
+    padding: 0;
+    list-style-type: none;
+}
+
+.listBlock li {
+    padding: 0 0 40px;
+}
+
+.bottomBodyText {
+    padding: 0 35px;
+    font-family: Manrope, sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 16px;
+    color: #A7A7A7;
+}
+
+.bottomBlock {
+    padding: 0 0 40px;
+}
+
+.bottomBlock hr {
+    border-color: #3F4246
+}
+
+.bottomBlock ul {
+    display: flex;
+    justify-content: center;
+    padding: 0;
+    list-style-type: none;
+}
+
+.bottomBlock li {
+    padding: 20px;
+}
+

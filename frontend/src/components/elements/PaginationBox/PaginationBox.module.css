@@ -1,0 +1,34 @@
+.root li:first-child a, .root li:last-child a {
+    padding: 3px 10px;
+    color: #262626;
+    background-color: transparent;
+    border: 0;
+    font-size: 25px;
+}
+
+.rootDark li:first-child a, .rootDark li:last-child a {
+    padding: 3px 10px;
+    color: #262626;
+    background-color: transparent!important;
+    border: 0;
+    font-size: 25px;
+}
+
+.rootDark li:first-child a span, .rootDark li:last-child a span{
+    background-color: transparent!important;
+    color: white;
+}
+
+.rootDark li span {
+    background-color: #5f8afa!important;
+}
+
+.rootDark li a {
+    background-color: #3F4246;
+    color: white;
+}
+
+.rootDark li a:hover {
+    background-color: #3F4246;
+    color: white;
+}

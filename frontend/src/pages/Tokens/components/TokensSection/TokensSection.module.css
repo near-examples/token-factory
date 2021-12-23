@@ -1,0 +1,55 @@
+.root {
+  font-family: Manrope, sans-serif;
+}
+
+.searchBlock {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.paginationBlock {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.sortBlock {
+  padding: 20px 0 0;
+  font-family: Manrope, sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 19px;
+}
+
+.sortBlock button {
+  width: 120px;
+  height: 40px;
+  border: 1px solid;
+  box-shadow: none;
+}
+
+.darkModeButtonPrimary {
+  background-color: #5f8afa;
+  color: white;
+  border: 1px solid #5f8afa!important;
+}
+
+.darkModeButtonSecondary {
+  border: 1px solid #5f8afa!important;
+  color: white;
+}
+
+.darkModeButtonPrimary:hover {
+  color: white;
+}
+
+.darkModeButtonSecondary:hover {
+  color: white;
+}
+
+.tokensTableBlock {
+  padding: 40px 0;
+}
+

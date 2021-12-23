@@ -1,0 +1,40 @@
+.root {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  width: 164px;
+  height: 40px;
+  background-color: rgba(95, 138, 250, 0.1);
+  border-radius: 34px;
+  cursor: pointer;
+}
+
+.circle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  height: 40px;
+  width: 40px;
+  border-radius: 34px;
+  transition: all 0.5s ease;
+}
+
+.left {
+  left: 0;
+}
+
+.move {
+  left: 100%;
+  transform: translate(-100%, 0);
+}
+
+.label {
+  font-family: Manrope, sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 19px;
+  font-style: normal;
+  transition: all 0.5s ease;
+}
