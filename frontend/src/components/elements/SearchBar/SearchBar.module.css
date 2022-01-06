@@ -1,0 +1,14 @@
+.root {
+  padding: 10px;
+  max-width: 300px;
+  width: 100%;
+  border-radius: 8px;
+  background-color: whitesmoke;
+}
+
+.root input {
+  border: none;
+  outline: none;
+  max-width: 80%;
+  background-color: whitesmoke;
+}

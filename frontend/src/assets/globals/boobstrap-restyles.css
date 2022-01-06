@@ -1,0 +1,15 @@
+.page-item {
+    padding: 0 10px;
+}
+
+.page-link {
+    color: #262626;
+    border: 0;
+    border-radius: 4px;
+
+}
+
+.page-item.active .page-link {
+    background-color: #262626;
+    color: white;
+}

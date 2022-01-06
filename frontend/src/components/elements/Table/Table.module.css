@@ -1,0 +1,56 @@
+.root table {
+    border: 0;
+}
+
+.root thead {
+    background-color: white;
+    border: 0;
+}
+
+.root table thead th {
+    padding: 10px 26px;
+    height: 40px;
+    border: 0;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    vertical-align: center;
+}
+
+.root tr {
+    border: 0;
+}
+
+.root td {
+    padding: 10px 26px;
+    height: 80px;
+    border: 0;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 19px;
+    background-color: white;
+    vertical-align: middle;
+}
+
+.root td a{
+    color: #5f8afa;
+}
+
+.spacer {
+    height: 20px;
+}
+
+.root td:first-child {
+    padding: 0;
+    width: 80px;
+    text-align: center;
+    background-color: rgba(95, 138, 250, 0.2);
+}
+
+.root td:first-child, th:first-child {
+    border-radius: 4px 0 0 4px;
+}
+
+.root td:last-child, th:last-child {
+    border-radius: 0 4px 4px 0;
+}
