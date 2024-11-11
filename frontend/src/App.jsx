@@ -8,8 +8,10 @@ import {
 import Big from "big.js";
 import ls from "local-storage";
 import { AppProvider } from "./context/AppContext";
+import "@near-wallet-selector/modal-ui/styles.css";
 import TokensPage from './pages/Tokens/Tokens';
 import NavBar from "./components/NavBar";
+
 
 const UploadResizeWidth = 96;
 const UploadResizeHeight = 96;
@@ -36,7 +38,7 @@ class App extends React.Component {
     this.onFilesError = this.onFilesError.bind(this);
     this.createToken = this.createToken.bind(this);
     this.setState = this.setState.bind(this);
-    this.requestSignIn = this.requestSignIn.bind(this);
+    this.requestSignIn = this.logIn.bind(this)
 
     this.state = {
       connected: false,
@@ -70,7 +72,30 @@ class App extends React.Component {
       });
     });
   }
+  connectionConfig = {
+    networkId: "testnet",
+    keyStore: new nearAPI.keyStores.BrowserLocalStorageKeyStore(),
+    nodeUrl: "https://rpc.testnet.near.org",
+    walletUrl: "https://testnet.mynearwallet.com/",
+    helperUrl: "https://helper.testnet.near.org",
+    explorerUrl: "https://testnet.nearblocks.io",
+  };
+  walletConnection = null;
 
+  // connect to NEAR
+  nearConnection = nearAPI.connect(this.connectionConfig).then((near) => { console.debug(near); this.walletConnection = new nearAPI.WalletConnection(near); });
+  async logIn() {
+    if (!this.walletConnection) {
+      return;
+    }
+    // const walletConnection = new WalletConnection(nearConnection);
+    this.walletConnection.requestSignIn({
+      contractId: "example-contract.testnet.REPLACE_ME",
+      methodNames: [], // optional
+      successUrl: "REPLACE_ME://.com/success", // optional redirect URL on success
+      failureUrl: "REPLACE_ME://.com/failure", // optional redirect URL on failure
+    });
+  }
   toggleDarkMode = () => {
     this.setState({ isDarkMode: !this.state.isDarkMode })
   }
@@ -172,7 +197,7 @@ class App extends React.Component {
       networkId: "mainnet",
       nodeUrl: "https://rpc.mainnet.near.org",
       contractName: ContractName,
-      walletUrl: "https://wallet.near.org",
+      walletUrl: "https://app.mynearwallet.com",
     };
     const keyStore = new nearAPI.keyStores.BrowserLocalStorageKeyStore();
     const near = await nearAPI.connect(
@@ -348,7 +373,6 @@ class App extends React.Component {
   async onFilesError(e, f) {
     console.log(e, f);
   }
-
   async createToken() {
     this.setState({
       creating: true,
@@ -367,24 +391,24 @@ class App extends React.Component {
   render() {
     return (
       <div className='flex screenHeight'>
-        <AppProvider value={ this.state }>
+        <AppProvider value={this.state}>
           <div className='flexBasis17'>
             <NavBar />
           </div>
           <div className='flexBasis83 fixedWrapper'>
             <TokensPage
-                state={ this.state }
-                contract={ this._contract }
-                lsKey={ this.lsKey }
-                lsKeyCachedTokens={ this.lsKeyCachedTokens }
-                onFilesChange={ this.onFilesChange }
-                onFilesError={ this.onFilesError }
-                handleChange={ this.handleChange }
-                logOut={ this.logOut }
-                createToken={ this.createToken }
-                setState={ this.setState }
-                requestSignIn={ this.requestSignIn }
-                requestWhitelist={ this.requestWhitelist }
+              state={this.state}
+              contract={this._contract}
+              lsKey={this.lsKey}
+              lsKeyCachedTokens={this.lsKeyCachedTokens}
+              onFilesChange={this.onFilesChange}
+              onFilesError={this.onFilesError}
+              handleChange={this.handleChange}
+              logOut={this.logOut}
+              createToken={this.createToken}
+              setState={this.setState}
+              requestSignIn={this.requestSignIn}
+              requestWhitelist={this.requestWhitelist}
             />
           </div>
         </AppProvider>

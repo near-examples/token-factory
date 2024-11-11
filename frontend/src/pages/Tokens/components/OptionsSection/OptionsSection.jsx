@@ -3,6 +3,7 @@ import { OneNear } from "../../../../components/Tokens/Tokens";
 import Files from "react-files";
 import React from "react";
 import Big from "big.js";
+import { useWalletSelector } from "../../../../hooks/useWalletSelector";
 
 const MinAccountIdLen = 2;
 const MaxAccountIdLen = 64;
@@ -12,10 +13,10 @@ const fromYocto = (a) => a && Big(a).div(OneNear).toFixed(6);
 const ContractName = "tkn.near";
 
 const OptionsSection = ({ handleChange, state, logOut,
-                            onFilesChange,
-                            onFilesError, createToken, setState,
-                            requestSignIn,
-                            requestWhitelist}) => {
+    onFilesChange,
+    onFilesError, createToken, setState,
+    requestSignIn,
+    requestWhitelist }) => {
 
     const isValidAccountId = (accountId) => {
         return (
@@ -24,6 +25,10 @@ const OptionsSection = ({ handleChange, state, logOut,
             accountId.match(ValidAccountRe)
         );
     }
+
+    const { walletModal, walletSelector, isConnected } = useWalletSelector();
+
+
 
     const isValidTokenId = (tokenId) => {
         tokenId = tokenId.toLowerCase();
@@ -88,32 +93,36 @@ const OptionsSection = ({ handleChange, state, logOut,
     ) : state.readyForWalletWhitelist ? (
         <div>
             <div className="alert alert-success" role="alert">
-                The token <b>{ state.tokenId }</b> was successfully created!
+                The token <b>{state.tokenId}</b> was successfully created!
             </div>
-            <div>
+            {/* <div>
                 <button
                     className="btn btn-success"
-                    onClick={ () => requestWhitelist(state.tokenId) }
+                    onClick={() => requestWhitelist(state.tokenId)}
                 >
-                    Add <b>{ state.tokenId }</b> to your NEAR Wallet
+                    Add <b>{state.tokenId}</b> to your NEAR Wallet
                 </button>
-            </div>
+            </div> */}
         </div>
     ) : state.signedIn ? (
         <div>
             <div className="float-right">
-                <Button onClick={() => logOut()} text={"Log out"}/>
+                <Button onClick={async () => {
+                    logOut()
+                    const wallet = await walletSelector.wallet("my-near-wallet");
+                    await wallet.signOut();
+                }} text={"Log out"} />
             </div>
             <h4>
-                Hello,
-                <span className="font-weight-bold">{ state.accountId }</span>!
+                Hello, {" "}
+                <span className="font-weight-bold">{state.accountId}</span>!
             </h4>
-            { state.expandCreateToken ? (
+            {state.expandCreateToken ? (
                 <div>
                     <p>
                         Issue a new token. It'll cost you
                         <span className="font-weight-bold">
-                            { fromYocto( state.requiredDeposit) } Ⓝ
+                            {fromYocto(state.requiredDeposit)} Ⓝ
                         </span>
                     </p>
                     <div className="form-group">
@@ -124,8 +133,8 @@ const OptionsSection = ({ handleChange, state, logOut,
                                 className="form-control form-control-large"
                                 id="tokenName"
                                 placeholder="Epic Moon Rocket"
-                                disabled={ state.creating }
-                                value={ state.tokenName }
+                                disabled={state.creating}
+                                value={state.tokenName}
                                 onChange={(e) =>
                                     handleChange("tokenName", e.target.value)
                                 }
@@ -140,17 +149,17 @@ const OptionsSection = ({ handleChange, state, logOut,
                         <div className="input-group">
                             <input
                                 type="text"
-                                className={ tokenIdClass() }
+                                className={tokenIdClass()}
                                 id="tokenId"
                                 placeholder="MOON"
-                                disabled={ state.creating }
-                                value={ state.tokenId }
+                                disabled={state.creating}
+                                value={state.tokenId}
                                 onChange={(e) =>
                                     handleChange("tokenId", e.target.value)
                                 }
                             />
                         </div>
-                        { state.tokenAlreadyExists && (
+                        {state.tokenAlreadyExists && (
                             <div>
                                 <small>
                                     <b>Token Symbol already exists.</b>
@@ -161,7 +170,7 @@ const OptionsSection = ({ handleChange, state, logOut,
                             It'll be used to identify the token and to create an Account
                             ID for the token
                             <code>
-                                { state.tokenId
+                                {state.tokenId
                                     ? state.tokenId.toLowerCase() + "." + ContractName
                                     : ""}
                             </code>
@@ -175,8 +184,8 @@ const OptionsSection = ({ handleChange, state, logOut,
                                 className="form-control form-control-large"
                                 id="totalSupply"
                                 placeholder="1000000000"
-                                disabled={ state.creating }
-                                value={ state.totalSupply }
+                                disabled={state.creating}
+                                value={state.totalSupply}
                                 onChange={(e) =>
                                     handleChange("totalSupply", e.target.value)
                                 }
@@ -192,8 +201,8 @@ const OptionsSection = ({ handleChange, state, logOut,
                                 className="form-control form-control-large"
                                 id="tokenDecimals"
                                 placeholder="18"
-                                disabled={ state.creating }
-                                value={ state.tokenDecimals }
+                                disabled={state.creating}
+                                value={state.tokenDecimals}
                                 onChange={(e) =>
                                     handleChange("tokenDecimals", e.target.value)
                                 }
@@ -201,7 +210,7 @@ const OptionsSection = ({ handleChange, state, logOut,
                         </div>
                         <small>
                             Tokens operate on integer numbers.
-                            <code>1 / 10**{ state.tokenDecimals }</code> is the
+                            <code>1 / 10**{state.tokenDecimals}</code> is the
                             smallest fractional value of the new token.
                         </small>
                     </div>
@@ -209,11 +218,11 @@ const OptionsSection = ({ handleChange, state, logOut,
                         <label forhtml="tokenIcon">Token Icon</label>
                         <div className="input-group">
                             <div>
-                                { state.tokenIconBase64 && (
+                                {state.tokenIconBase64 && (
                                     <img
                                         className="rounded token-icon"
                                         style={{ marginRight: "1em" }}
-                                        src={ state.tokenIconBase64 }
+                                        src={state.tokenIconBase64}
                                         alt="Token Icon"
                                     />
                                 )}
@@ -224,9 +233,9 @@ const OptionsSection = ({ handleChange, state, logOut,
                                     className="form-control form-control-large btn btn-outline-primary"
                                     onChange={(f) => onFilesChange(f)}
                                     onError={(e, f) => onFilesError(e, f)}
-                                    multiple={ false }
+                                    multiple={false}
                                     accepts={["image/*"]}
-                                    minFileSize={ 1 }
+                                    minFileSize={1}
                                     clickable
                                 >
                                     Click to upload Token Icon
@@ -240,11 +249,11 @@ const OptionsSection = ({ handleChange, state, logOut,
                         <div className="input-group">
                             <input
                                 type="text"
-                                className={ ownerIdClass() }
+                                className={ownerIdClass()}
                                 id="ownerId"
-                                placeholder={ state.accountId }
-                                disabled={ state.creating }
-                                value={ state.ownerId }
+                                placeholder={state.accountId}
+                                disabled={state.creating}
+                                value={state.ownerId}
                                 onChange={(e) =>
                                     handleChange("ownerId", e.target.value)
                                 }
@@ -272,9 +281,9 @@ const OptionsSection = ({ handleChange, state, logOut,
                                     state.tokenLoading ||
                                     state.tokenAlreadyExists
                                 }
-                                onClick={ () => createToken() }
+                                onClick={() => createToken()}
                             >
-                                Create Token ({ fromYocto(state.requiredDeposit) } Ⓝ)
+                                Create Token ({fromYocto(state.requiredDeposit)} Ⓝ)
                             </button>
                         </div>
                     </div>
@@ -287,7 +296,7 @@ const OptionsSection = ({ handleChange, state, logOut,
                     />
                 </div>
             )}
-            <hr/>
+            <hr />
         </div>
 
     ) : (

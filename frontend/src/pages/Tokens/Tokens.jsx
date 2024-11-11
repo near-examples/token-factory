@@ -1,21 +1,23 @@
-import React, {useEffect, useState} from "react";
+import React, { useEffect, useState } from "react";
 import TokensSection from "./components/TokensSection/TokensSection";
 import OptionsSection from "./components/OptionsSection/OptionsSection";
 import SearchBarFade from "../../components/elements/SearchBarFade";
 import SearchIcon from '../../assets/icons/SearchIcon.svg'
 import Button from "../../components/elements/Button";
 import styles from './Tokens.module.css';
-import {AppConsumer} from "../../context/AppContext";
-import {Colors} from "../../assets/colors/colors";
+import { AppConsumer } from "../../context/AppContext";
+import { Colors } from "../../assets/colors/colors";
+import { useWalletSelector } from "../../hooks/useWalletSelector";
 
 
 const Tokens = ({
-                    state, contract, lsKey, lsKeyCachedTokens, onFilesChange,
-                    onFilesError, handleChange, logOut, createToken,
-                    setState, requestSignIn, requestWhitelist
-                }) => {
+    state, contract, lsKey, lsKeyCachedTokens, onFilesChange,
+    onFilesError, handleChange, logOut, createToken,
+    setState, requestSignIn, requestWhitelist
+}) => {
 
-    const {connected, accountId, signedIn} = state;
+    const { connected, accountId, signedIn } = state;
+    const { walletSelector, walletModal, isConnected, logOutWs } = useWalletSelector();
 
     const [searchText, setSearchText] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
@@ -24,8 +26,10 @@ const Tokens = ({
         setCurrentPage(1);
     }, [searchText])
 
+    console.debug(isConnected)
+
     const handleSearch = (e) => {
-        const {value} = e.target;
+        const { value } = e.target;
         setSearchText(value);
     }
 
@@ -35,7 +39,7 @@ const Tokens = ({
 
     return (
         <AppConsumer>
-            {({isDarkMode}) => (
+            {({ isDarkMode }) => (
                 <div>
                     <div className={`flex padding-20-40 ${isDarkMode && 'background-color-black'}`}>
                         <div className='flexBasis80'>
@@ -45,15 +49,15 @@ const Tokens = ({
                                 isDarkMode={isDarkMode}
                             />
                         </div>
-                        <div className='flexBasis20 flexCenter'>
+                        {walletSelector && !state.signedIn && <div className='flexBasis20 flexCenter'>
                             <Button
                                 text='Log in'
-                                onClick={requestSignIn}
-                                backgroundColor={ isDarkMode ? Colors.blue : Colors.black }
+                                onClick={() => isConnected ? logOutWs() : walletModal.show()}
+                                backgroundColor={isDarkMode ? Colors.blue : Colors.black}
                                 width={150}
                                 height={40}
                             />
-                        </div>
+                        </div>}
                     </div>
                     <div
                         className='padding-20-40'
@@ -65,16 +69,16 @@ const Tokens = ({
                         <OptionsSection
                             handleChange={handleChange}
                             state={state}
-                            logOut={logOut}
+                            logOut={() => { logOut(); logOutWs() }}
                             onFilesChange={onFilesChange}
                             onFilesError={onFilesError}
                             createToken={createToken}
                             setState={setState}
-                            requestSignIn={requestSignIn}
+                            requestSignIn={walletSelector}
                             requestWhitelist={requestWhitelist}
                         />
                     </div>
-                    <div className={ isDarkMode ? styles.tokensSectionDark : styles.tokensSection }>
+                    <div className={isDarkMode ? styles.tokensSectionDark : styles.tokensSection}>
                         {connected && <div>
                             <TokensSection
                                 contract={contract}
@@ -85,7 +89,7 @@ const Tokens = ({
                                 accountId={accountId}
                                 isSignedIn={signedIn}
                                 searchText={searchText}
-                                isDarkMode={ isDarkMode }
+                                isDarkMode={isDarkMode}
                             />
                         </div>}
                     </div>

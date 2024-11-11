@@ -4,10 +4,14 @@
   "homepage": "",
   "private": true,
   "dependencies": {
+    "@near-wallet-selector/core": "^8.9.7",
+    "@near-wallet-selector/modal-ui": "^8.9.7",
+    "@near-wallet-selector/my-near-wallet": "^8.9.7",
+    "@near-wallet-selector/near-wallet": "^8.9.3",
     "big.js": "^6.0.3",
     "local-storage": "^2.0.0",
     "lodash": "^4.17.21",
-    "near-api-js": "^0.38.0",
+    "near-api-js": "^0.44.2",
     "react": "^16.13.1",
     "react-bootstrap": "^1.0.0",
     "react-dom": "^16.13.1",
@@ -16,8 +20,8 @@
     "react-table": "^7.0.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "react-scripts --openssl-legacy-provider start",
+    "build": "react-scripts --openssl-legacy-provider build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "deploy": "yarn build && gh-pages -d build"

@@ -322,12 +322,9 @@ class Tokens extends React.Component {
         return liqB.sub(liqA).toNumber();
       });
     } else if (this.state.sortedBy === SortedByYourTokens) {
-      tokens.sort((a, b) => {
-        const va = a.owner_id === this._accountId ? 1 : 0;
-        const vb = b.owner_id === this._accountId ? 1 : 0;
-        return vb - va;
-      });
+      tokens = tokens.filter((t) => t.owner_id === this._accountId);
     }
+    console.debug(tokens, this._accountId)
     return tokens;
   }
 
@@ -355,7 +352,7 @@ class Tokens extends React.Component {
 
   async refreshRefBalances() {
     if (this._accountId) {
-      const balances = await this._refContract.get_deposits({account_id: this._accountId});
+      const balances = await this._refContract.get_deposits({ account_id: this._accountId });
       Object.keys(balances).forEach((key) => {
         balances[key] = Big(balances[key]);
       });
@@ -382,9 +379,9 @@ class Tokens extends React.Component {
   async refreshRefPools() {
     let numPools = 0;
     try {
-        numPools = await this._refContract.get_number_of_pools();
+      numPools = await this._refContract.get_number_of_pools();
     } catch (err) {
-        console.log(err)
+      console.log(err)
     }
     const promises = [];
     const limit = 100;
@@ -510,11 +507,10 @@ class Tokens extends React.Component {
           <div className="btn-group ml-2" role="group" aria-label="Sorted By">
             <button
               type="button"
-              className={`btn ${
-                this.state.sortedBy === SortedByLiquidity
-                  ? "btn-secondary background-color-grey"
-                  : "btn-outline-secondary"
-              }`}
+              className={`btn ${this.state.sortedBy === SortedByLiquidity
+                ? "btn-secondary background-color-grey"
+                : "btn-outline-secondary"
+                }`}
               onClick={() =>
                 this.setState({ sortedBy: SortedByLiquidity }, () =>
                   this.updateTokens()
@@ -526,11 +522,10 @@ class Tokens extends React.Component {
             {this.props.isSignedIn && (
               <button
                 type="button"
-                className={`btn ${
-                  this.state.sortedBy === SortedByYourTokens
-                    ? "btn-secondary background-color-grey"
-                    : "btn-outline-secondary"
-                }`}
+                className={`btn ${this.state.sortedBy === SortedByYourTokens
+                  ? "btn-secondary background-color-grey"
+                  : "btn-outline-secondary"
+                  }`}
                 onClick={() =>
                   this.setState({ sortedBy: SortedByYourTokens }, () =>
                     this.updateTokens()
@@ -542,11 +537,10 @@ class Tokens extends React.Component {
             )}
             <button
               type="button"
-              className={`btn ${
-                this.state.sortedBy === SortedByIndex
-                  ? "btn-secondary background-color-grey"
-                  : "btn-outline-secondary"
-              }`}
+              className={`btn ${this.state.sortedBy === SortedByIndex
+                ? "btn-secondary background-color-grey"
+                : "btn-outline-secondary"
+                }`}
               onClick={() =>
                 this.setState({ sortedBy: SortedByIndex }, () =>
                   this.updateTokens()

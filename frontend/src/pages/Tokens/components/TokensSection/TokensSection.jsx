@@ -6,6 +6,7 @@ import * as nearAPI from "near-api-js";
 import styles from "./TokensSection.module.css";
 import PaginationBox from "../../../../components/elements/PaginationBox";
 import Table from "../../../../components/elements/Table";
+
 export const ContractName = "tkn.near";
 const SimplePool = "SIMPLE_POOL";
 const RefContractId = "v2.ref-finance.near";
@@ -85,11 +86,11 @@ class TokensSection extends React.Component {
         Header: "Total Supply",
         accessor: "total_supply",
         Cell: ({ row }) =>
-            Big(row.original.total_supply)
-                .div(Big(10).pow(row.original.metadata.decimals))
-                .round(0, 0)
-                .toFixed(0)
-                .toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, " ")
+          Big(row.original.total_supply)
+            .div(Big(10).pow(row.original.metadata.decimals))
+            .round(0, 0)
+            .toFixed(0)
+            .toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, " ")
       },
       /* {
         Header: 'Ref Finance',
@@ -318,11 +319,7 @@ class TokensSection extends React.Component {
         return liqB.sub(liqA).toNumber();
       });
     } else if (this.state.sortedBy === SortedByYourTokens) {
-      tokens.sort((a, b) => {
-        const va = a.owner_id === this._accountId ? 1 : 0;
-        const vb = b.owner_id === this._accountId ? 1 : 0;
-        return vb - va;
-      });
+      tokens = tokens.filter((t) => t.owner_id === this._accountId)
     }
     return tokens;
   }
@@ -351,7 +348,7 @@ class TokensSection extends React.Component {
 
   async refreshRefBalances() {
     if (this._accountId) {
-      const balances = await this._refContract.get_deposits({account_id: this._accountId});
+      const balances = await this._refContract.get_deposits({ account_id: this._accountId });
       Object.keys(balances).forEach((key) => {
         balances[key] = Big(balances[key]);
       });
@@ -489,75 +486,75 @@ class TokensSection extends React.Component {
     const currentData = dataFiltered.slice(firstPageIndex, lastPageIndex);
 
     return (
-        <div className={ styles.root }>
-            <div className={ styles.sortBlock }>
-              <span className={`padding-20-20-0-0 ${ isDarkMode && 'color-white'}`}>
-                 {'Sort by'}
-              </span>
-              <div className="btn-group" role="group" aria-label="Sorted By">
-                <button
-                  type="button"
-                  className={`btn ${ this.state.sortedBy === SortedByLiquidity
-                      ? isDarkMode ? `${ styles.darkModeButtonPrimary }` : "btn-secondary background-color-black" 
-                      : isDarkMode ? `${ styles.darkModeButtonSecondary }` : 'btn'
+      <div className={styles.root}>
+        <div className={styles.sortBlock}>
+          <span className={`padding-20-20-0-0 ${isDarkMode && 'color-white'}`}>
+            {'Sort by'}
+          </span>
+          <div className="btn-group" role="group" aria-label="Sorted By">
+            <button
+              type="button"
+              className={`btn ${this.state.sortedBy === SortedByLiquidity
+                ? isDarkMode ? `${styles.darkModeButtonPrimary}` : "btn-secondary background-color-black"
+                : isDarkMode ? `${styles.darkModeButtonSecondary}` : 'btn'
+                }`}
+              onClick={() =>
+                this.setState({ sortedBy: SortedByLiquidity }, () =>
+                  this.updateTokens()
+                )
+              }
+            >
+              Liquidity
+            </button>
+            {this.props.isSignedIn && (
+              <button
+                type="button"
+                className={`btn ${this.state.sortedBy === SortedByYourTokens
+                  ? isDarkMode ? `${styles.darkModeButtonPrimary}` : "btn-secondary background-color-black"
+                  : isDarkMode ? `${styles.darkModeButtonSecondary}` : 'btn'
                   }`}
-                  onClick={() =>
-                    this.setState({ sortedBy: SortedByLiquidity }, () =>
-                      this.updateTokens()
-                    )
-                  }
-                >
-                  Liquidity
-                </button>
-                { this.props.isSignedIn && (
-                  <button
-                    type="button"
-                    className={`btn ${ this.state.sortedBy === SortedByYourTokens
-                        ? isDarkMode ? `${ styles.darkModeButtonPrimary }` : "btn-secondary background-color-black"
-                        : isDarkMode ? `${ styles.darkModeButtonSecondary }` : 'btn'
-                    }`}
-                    onClick={() =>
-                      this.setState({ sortedBy: SortedByYourTokens }, () =>
-                        this.updateTokens()
-                      )
-                    }
-                  >
-                    Your tokens
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={`btn ${ this.state.sortedBy === SortedByIndex
-                      ? isDarkMode ? `${ styles.darkModeButtonPrimary }` : "btn-secondary background-color-black"
-                      : isDarkMode ? `${ styles.darkModeButtonSecondary }` : 'btn'
-                  }`}
-                  onClick={() =>
-                    this.setState({ sortedBy: SortedByIndex }, () =>
-                      this.updateTokens()
-                    )
-                  }
-                >
-                  Index
-                </button>
-              </div>
-            </div>
-            <div className={ styles.tokensTableBlock }>
-                <Table
-                    columns={ columns }
-                    data={ currentData }
-                    isDarkMode={ isDarkMode }
-                />
-            </div>
-            <div className={ styles.paginationBlock }>
-                <PaginationBox
-                    handlePage={ this.props.handlePage }
-                    rowsPerPage={ rowsPerPage }
-                    dataLength={ dataFiltered.length }
-                    currentPage={ this.props.currentPage }
-                    isDarkMode={ isDarkMode }
-                />
-            </div>
+                onClick={() =>
+                  this.setState({ sortedBy: SortedByYourTokens }, () =>
+                    this.updateTokens()
+                  )
+                }
+              >
+                Your tokens
+              </button>
+            )}
+            <button
+              type="button"
+              className={`btn ${this.state.sortedBy === SortedByIndex
+                ? isDarkMode ? `${styles.darkModeButtonPrimary}` : "btn-secondary background-color-black"
+                : isDarkMode ? `${styles.darkModeButtonSecondary}` : 'btn'
+                }`}
+              onClick={() =>
+                this.setState({ sortedBy: SortedByIndex }, () =>
+                  this.updateTokens()
+                )
+              }
+            >
+              Index
+            </button>
+          </div>
         </div>
+        <div className={styles.tokensTableBlock}>
+          <Table
+            columns={columns}
+            data={currentData}
+            isDarkMode={isDarkMode}
+          />
+        </div>
+        <div className={styles.paginationBlock}>
+          <PaginationBox
+            handlePage={this.props.handlePage}
+            rowsPerPage={rowsPerPage}
+            dataLength={dataFiltered.length}
+            currentPage={this.props.currentPage}
+            isDarkMode={isDarkMode}
+          />
+        </div>
+      </div>
     );
   }
 }
